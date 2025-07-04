@@ -3,16 +3,15 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 50;
+	objectVersion = 60;
 	objects = {
 
 /* Begin PBXBuildFile section */
 		16A163F4235710050032684C /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 16A163F3235710050032684C /* Assets.xcassets */; };
 		16A163F7235710050032684C /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 16A163F5235710050032684C /* LaunchScreen.storyboard */; };
-		16A163FF235710580032684C /* QRScanner.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 16A163FE235710580032684C /* QRScanner.framework */; };
-		16A16400235710580032684C /* QRScanner.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 16A163FE235710580032684C /* QRScanner.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		16A164A2235710580032684C /* QRScannerSwiftUIApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16A164A0235710580032684C /* QRScannerSwiftUIApp.swift */; };
 		16A164A3235710580032684C /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16A164A1235710580032684C /* ContentView.swift */; };
+		BA15AF352E92B60500CE3B12 /* QRScanner in Frameworks */ = {isa = PBXBuildFile; productRef = BA15AF342E92B60500CE3B12 /* QRScanner */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -22,7 +21,6 @@
 			dstPath = "";
 			dstSubfolderSpec = 10;
 			files = (
-				16A16400235710580032684C /* QRScanner.framework in Embed Frameworks */,
 			);
 			name = "Embed Frameworks";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -34,7 +32,6 @@
 		16A163F3235710050032684C /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		16A163F6235710050032684C /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		16A163F8235710050032684C /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
-		16A163FE235710580032684C /* QRScanner.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; path = QRScanner.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		16A164A0235710580032684C /* QRScannerSwiftUIApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QRScannerSwiftUIApp.swift; sourceTree = "<group>"; };
 		16A164A1235710580032684C /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -44,7 +41,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				16A163FF235710580032684C /* QRScanner.framework in Frameworks */,
+				BA15AF352E92B60500CE3B12 /* QRScanner in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -54,7 +51,6 @@
 		16A163E0235710040032684C = {
 			isa = PBXGroup;
 			children = (
-				16A163FE235710580032684C /* QRScanner.framework */,
 				16A163EB235710040032684C /* QRScannerSwiftUISample */,
 				16A163EA235710040032684C /* Products */,
 			);
@@ -125,6 +121,9 @@
 				Base,
 			);
 			mainGroup = 16A163E0235710040032684C;
+			packageReferences = (
+				BA15AF332E92B60500CE3B12 /* XCLocalSwiftPackageReference "../../QRScanner" */,
+			);
 			productRefGroup = 16A163EA235710040032684C /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
@@ -291,7 +290,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_STYLE = Automatic;
-				DEVELOPMENT_TEAM = K69VE4UMZN;
+				DEVELOPMENT_TEAM = FUWV6U942Q;
 				INFOPLIST_FILE = QRScannerSwiftUISample/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -309,7 +308,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_STYLE = Automatic;
-				DEVELOPMENT_TEAM = K69VE4UMZN;
+				DEVELOPMENT_TEAM = FUWV6U942Q;
 				INFOPLIST_FILE = QRScannerSwiftUISample/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -344,6 +343,20 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		BA15AF332E92B60500CE3B12 /* XCLocalSwiftPackageReference "../../QRScanner" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = ../../QRScanner;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		BA15AF342E92B60500CE3B12 /* QRScanner */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = QRScanner;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 16A163E1235710040032684C /* Project object */;
 }

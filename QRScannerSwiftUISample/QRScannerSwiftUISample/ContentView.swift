@@ -5,13 +5,13 @@ import AVFoundation
 struct ContentView: View {
     @State private var isScanning = true
     @State private var isTorchOn = false
-    
+    @State private var shouldRescan = false
     var body: some View {
         ZStack {
             QRScannerSwiftUIView(
-                configuration: .init(isBlurEffectEnabled: true),
                 isScanning: $isScanning,
                 torchActive: $isTorchOn,
+                shouldRescan: $shouldRescan,
                 onSuccess: { qrCode in
                     print("QR Code scanned: \(qrCode)")
                 },
@@ -31,8 +31,16 @@ struct ContentView: View {
             }
             
             VStack {
+                
                 Spacer()
                 HStack {
+                    Button{
+                        self.shouldRescan = true
+                    }label: {
+                        Text("重新扫描")
+                    }
+                    .buttonStyle(.borderless)
+                    .padding(.leading, 50)
                     Spacer()
                     
                     Button(action: {

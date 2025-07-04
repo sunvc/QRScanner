@@ -3,25 +3,8 @@ import SwiftUI
 // MARK: - QRScannerSwiftUIView
 public struct QRScannerSwiftUIView: UIViewRepresentable {
     
-    // MARK: - Configuration
-    public struct Configuration {
-        public let focusImage: UIImage?
-        public let focusImagePadding: CGFloat
-        public let animationDuration: Double
-        public let isBlurEffectEnabled: Bool
-        
-        public init(
-            focusImage: UIImage? = nil,
-            focusImagePadding: CGFloat = 8.0,
-            animationDuration: Double = 0.5,
-            isBlurEffectEnabled: Bool = false
-        ) {
-            self.focusImage = focusImage
-            self.focusImagePadding = focusImagePadding
-            self.animationDuration = animationDuration
-            self.isBlurEffectEnabled = isBlurEffectEnabled
-        }
-    }
+    public typealias Configuration = QRScannerView.Input
+    
     
     // MARK: - Properties
     private let configuration: Configuration
@@ -30,12 +13,14 @@ public struct QRScannerSwiftUIView: UIViewRepresentable {
     private let onTorchActiveChange: ((Bool) -> Void)?
     @Binding private var isScanning: Bool
     @Binding private var torchActive: Bool
+    @Binding private var shouldRescan:Bool
     
     // MARK: - Initializers
     public init(
         configuration: Configuration = Configuration(),
         isScanning: Binding<Bool> = .constant(true),
         torchActive: Binding<Bool> = .constant(false),
+        shouldRescan: Binding<Bool> = .constant(false),
         onSuccess: @escaping (String) -> Void,
         onFailure: @escaping (QRScannerError) -> Void,
         onTorchActiveChange: ((Bool) -> Void)? = nil
@@ -43,6 +28,7 @@ public struct QRScannerSwiftUIView: UIViewRepresentable {
         self.configuration = configuration
         self._isScanning = isScanning
         self._torchActive = torchActive
+        self._shouldRescan = shouldRescan
         self.onSuccess = onSuccess
         self.onFailure = onFailure
         self.onTorchActiveChange = onTorchActiveChange
@@ -51,28 +37,39 @@ public struct QRScannerSwiftUIView: UIViewRepresentable {
     // MARK: - UIViewRepresentable
     public func makeUIView(context: Context) -> QRScannerView {
         let qrScannerView = QRScannerView()
-        let input = QRScannerView.Input(
-            focusImage: configuration.focusImage,
-            focusImagePadding: configuration.focusImagePadding,
-            animationDuration: configuration.animationDuration,
-            isBlurEffectEnabled: configuration.isBlurEffectEnabled
-        )
-        qrScannerView.configure(delegate: context.coordinator, input: input)
+
+        qrScannerView.configure(delegate: context.coordinator, input: configuration)
         context.coordinator.qrScannerView = qrScannerView
 
         if isScanning {
             qrScannerView.startRunning()
+        }
+        
+        // Start overlay animation after a short delay to ensure view is properly laid out
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+            qrScannerView.startOverlayAnimation()
         }
 
         return qrScannerView
     }
     
     public func updateUIView(_ uiView: QRScannerView, context: Context) {
-        if isScanning {
-            uiView.startRunning()
-        } else {
-            uiView.stopRunning()
+    
+        
+        if shouldRescan{
+            uiView.rescan()
+            DispatchQueue.main.async{
+                self.isScanning = true
+                self.shouldRescan = false
+            }
+        }else{
+            if isScanning {
+                uiView.startRunning()
+            }else{
+                uiView.stopRunning()
+            }
         }
+       
         
         uiView.setTorchActive(isOn: torchActive)
     }
@@ -112,7 +109,7 @@ public struct QRScannerSwiftUIView: UIViewRepresentable {
         }
         
         public func qrScannerView(_ qrScannerView: QRScannerView, didSuccess code: String) {
-            Task { @MainActor in
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1){
                 self.isScanning = false
             }
             onSuccess(code)

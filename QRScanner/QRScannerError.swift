@@ -19,6 +19,5 @@ public enum QRScannerError: Error {
         case videoUnavailable
         case inputInvalid
         case metadataOutputFailure
-        case videoDataOutputFailure
     }
 }
