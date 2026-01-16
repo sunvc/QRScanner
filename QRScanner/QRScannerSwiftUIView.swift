@@ -8,6 +8,8 @@ public struct QRScannerSwiftUIView: UIViewRepresentable {
     // MARK: - Properties
 
     private let configuration: Configuration
+    private let showOverlay: Bool
+    private let videoZoomFactor: CGFloat
     private let onSuccess: (String) -> Void
     private let onFailure: (QRScannerError) -> Void
     private let onTorchActiveChange: ((Bool) -> Void)?
@@ -23,14 +25,14 @@ public struct QRScannerSwiftUIView: UIViewRepresentable {
         torchActive: Binding<Bool> = .constant(false),
         shouldRescan: Binding<Bool> = .constant(false),
         showOverlay: Bool = true,
+        videoZoomFactor: CGFloat = 1.0,
         onSuccess: @escaping (String) -> Void,
         onFailure: @escaping (QRScannerError) -> Void,
         onTorchActiveChange: ((Bool) -> Void)? = nil
     ) {
-        var configuration = configuration
-        configuration.showOverlay = showOverlay
-        
         self.configuration = configuration
+        self.showOverlay = showOverlay
+        self.videoZoomFactor = videoZoomFactor
         _isScanning = isScanning
         _torchActive = torchActive
         _shouldRescan = shouldRescan
@@ -45,6 +47,7 @@ public struct QRScannerSwiftUIView: UIViewRepresentable {
         let qrScannerView = QRScannerView()
 
         qrScannerView.configure(delegate: context.coordinator, input: configuration)
+        qrScannerView.setVideoZoomFactor(videoZoomFactor)
         context.coordinator.qrScannerView = qrScannerView
 
         if isScanning {
@@ -73,6 +76,9 @@ public struct QRScannerSwiftUIView: UIViewRepresentable {
                 uiView.stopRunning()
             }
         }
+        
+        
+        uiView.setVideoZoomFactor(videoZoomFactor)
 
         uiView.setTorchActive(isOn: torchActive)
     }
@@ -114,9 +120,6 @@ public struct QRScannerSwiftUIView: UIViewRepresentable {
         }
 
         public func qrScannerView(_ qrScannerView: QRScannerView, didSuccess code: String) {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                self.isScanning = false
-            }
             onSuccess(code)
         }
 
