@@ -242,10 +242,11 @@ public class QRScannerView: UIView {
     public func setTorchActive(isOn: Bool) {
         assert(Thread.isMainThread)
         
-        guard let videoDevice = AVCaptureDevice.default(for: .video),
-              videoDevice.hasTorch, videoDevice.isTorchAvailable, metadataOutputEnable else {
-            return
-        }
+        guard let videoInput = session.inputs.first as? AVCaptureDeviceInput else { return }
+        let videoDevice = videoInput.device
+        
+        guard videoDevice.hasTorch, videoDevice.isTorchAvailable else { return }
+        
         try? videoDevice.lockForConfiguration()
         videoDevice.torchMode = isOn ? .on : .off
         videoDevice.unlockForConfiguration()
