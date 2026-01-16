@@ -171,11 +171,13 @@ public class QRScannerView: UIView {
 
         // Step 5: Recreate scan frame
         focusImageView = UIImageView(frame: calculation())
-        focusImageView.image = focusImage ?? UIImage(
+        let image = focusImage ?? UIImage(
             named: "scan_qr_focus",
             in: .module,
             compatibleWith: nil
         )
+        focusImageView.image = image?.withRenderingMode(.alwaysTemplate)
+        focusImageView.tintColor = .white
         addSubview(focusImageView)
 
         // Step 6: Reset overlay mask (with animation)
@@ -557,11 +559,13 @@ public class QRScannerView: UIView {
         focusImageView = UIImageView(frame: calculation())
 
         // Set scan frame image, prioritize custom image, otherwise use default
-        focusImageView.image = focusImage ?? UIImage(
+        let image = focusImage ?? UIImage(
             named: "scan_qr_focus",
             in: .module,
             compatibleWith: nil
         )
+        focusImageView.image = image?.withRenderingMode(.alwaysTemplate)
+        focusImageView.tintColor = .white
 
         // Add scan frame to view hierarchy
         addSubview(focusImageView)
@@ -1085,51 +1089,35 @@ public class QRScannerView: UIView {
             height: frameSize
         )
 
-        // Dynamic animation duration calculation
-        // Adjust duration based on movement distance to handle camera switching or fast movement
-        let currentDuration: TimeInterval
-        if let lastFrame = lastFrame {
-            let moveDistance = hypot(
-                targetFrame.midX - lastFrame.midX,
-                targetFrame.midY - lastFrame.midY
-            )
-            let sizeChange = abs(targetFrame.width - lastFrame.width)
-
-            // If movement > 60pt or size change > 30pt, consider it a sudden change (e.g. camera
-            // switch)
-            // Use faster animation to snap to new position
-            if moveDistance > 60 || sizeChange > 30 {
-                currentDuration = min(0.15, animationDuration)
-            } else {
-                currentDuration = animationDuration
-            }
-        } else {
-            currentDuration = 0 // Immediate for first frame
-        }
         lastFrame = targetFrame
 
         // Step 5: Start DisplayLink for perfect synchronization
         startDisplayLink()
 
         // Step 6: Execute focusImageView animation transform
-        UIView.animate(withDuration: currentDuration, animations: { [weak self] in
-            guard let strongSelf = self else { return }
+        UIView.animate(
+            withDuration: 0.3,
+            delay: 0,
+            usingSpringWithDamping: 0.7,
+            initialSpringVelocity: 0.5,
+            options: [.beginFromCurrentState, .allowUserInteraction],
+            animations: { [weak self] in
+                guard let strongSelf = self else { return }
 
-            // Reset transform to avoid cumulative transform effects
-            strongSelf.focusImageView.transform = CGAffineTransform.identity
+                strongSelf.focusImageView.tintColor = .red
+                // Reset transform to avoid cumulative transform effects
+                strongSelf.focusImageView.transform = CGAffineTransform.identity
 
-            // Set new frame (position and size)
-            strongSelf.focusImageView.frame = targetFrame
-
-            // Apply rotation transform (rotate around center)
-            // strongSelf.focusImageView.transform = CGAffineTransform(rotationAngle: rotationAngle)
-
-        }, completion: { [weak self] _ in
-            guard let strongSelf = self else { return }
-            // Stop display link and do one final update to ensure exact match
-            strongSelf.stopDisplayLink()
-            strongSelf.updateOverlayMaskFromPresentation()
-        })
+                // Set new frame (position and size)
+                strongSelf.focusImageView.frame = targetFrame
+            },
+            completion: { [weak self] _ in
+                guard let strongSelf = self else { return }
+                // Stop display link and do one final update to ensure exact match
+                strongSelf.stopDisplayLink()
+                strongSelf.updateOverlayMaskFromPresentation()
+            }
+        )
     }
 
     private func resetTracking() {
@@ -1152,6 +1140,7 @@ public class QRScannerView: UIView {
         startDisplayLink()
 
         UIView.animate(withDuration: 0.25, delay: 0, options: [.curveEaseOut], animations: {
+            self.focusImageView.tintColor = .white
             self.focusImageView.transform = .identity
             self.focusImageView.frame = defaultFrame
         }) { _ in
