@@ -6,12 +6,14 @@ struct ContentView: View {
     @State private var isScanning = true
     @State private var isTorchOn = false
     @State private var shouldRescan = false
+    @State private var showOverlay = true
     var body: some View {
         ZStack {
             QRScannerSwiftUIView(
                 isScanning: $isScanning,
                 torchActive: $isTorchOn,
                 shouldRescan: $shouldRescan,
+                showOverlay: showOverlay,
                 onSuccess: { qrCode in
                     print("QR Code scanned: \(qrCode)")
                 },
@@ -37,12 +39,19 @@ struct ContentView: View {
                     Button{
                         self.shouldRescan = true
                     }label: {
-                        Text("重新扫描")
+                        Text("Rescan")
                     }
                     .buttonStyle(.borderless)
                     .padding(.leading, 50)
                     Spacer()
-                    
+                    Button{
+                        self.showOverlay = true
+                    }label: {
+                        Text("Overly")
+                    }
+                    .buttonStyle(.borderless)
+                    .padding(.leading, 50)
+                    Spacer()
                     Button(action: {
                         isTorchOn.toggle()
                     }) {

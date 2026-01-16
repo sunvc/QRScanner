@@ -32,6 +32,7 @@ public class QRScannerView: UIView {
         let focusImagePadding: CGFloat?
         let animationDuration: Double?
         let scanningAreaLimit: Bool
+        var showOverlay: Bool
         let metadataObjectTypes: [AVMetadataObject.ObjectType]
         
         
@@ -41,11 +42,13 @@ public class QRScannerView: UIView {
                     focusImagePadding: CGFloat? = nil,
                     animationDuration: Double? = nil,
                     scanningAreaLimit: Bool = false,
+                    showOverlay: Bool = true,
                     metadataObjectTypes: [AVMetadataObject.ObjectType] = [.qr,.aztec] ) {
             self.focusImage = focusImage
             self.focusImagePadding = focusImagePadding
             self.animationDuration = animationDuration
             self.scanningAreaLimit = scanningAreaLimit
+            self.showOverlay = showOverlay
             self.metadataObjectTypes = metadataObjectTypes
         }
     }
@@ -68,6 +71,10 @@ public class QRScannerView: UIView {
     
     @IBInspectable
     public var scanningAreaLimit:Bool = false
+
+    @IBInspectable
+    public var showOverlay: Bool = true
+
     
     // MARK: - Public
     
@@ -95,6 +102,7 @@ public class QRScannerView: UIView {
         }
         
         self.scanningAreaLimit = input.scanningAreaLimit
+        self.showOverlay = input.showOverlay
         
         // Initialize components in order
         configureSession(metadataObjectTypes: input.metadataObjectTypes)  // Configure camera session
@@ -310,6 +318,7 @@ public class QRScannerView: UIView {
     
     // MARK: Camera Session
     private let session = AVCaptureSession()
+    
     private var previewLayer: AVCaptureVideoPreviewLayer?
     private var metadataOutput = AVCaptureMetadataOutput()
     private var metadataOutputEnable = false
@@ -342,6 +351,7 @@ public class QRScannerView: UIView {
     }
     
     private func authorizationStatus() -> AuthorizationStatus {
+
         switch AVCaptureDevice.authorizationStatus(for: .video) {
         case .authorized:
             return .authorized
@@ -362,7 +372,27 @@ public class QRScannerView: UIView {
     // MARK: Session Configuration
     private func configureSession(metadataObjectTypes: [AVMetadataObject.ObjectType] ) {
         // check device initialize
-        guard let videoDevice = AVCaptureDevice.default(for: .video) else {
+        var device: AVCaptureDevice?
+        
+        if #available(iOS 13.0, *) {
+            if let tripleCamera = AVCaptureDevice.default(.builtInTripleCamera, for: .video, position: .back) {
+                device = tripleCamera
+            } else if let dualWideCamera = AVCaptureDevice.default(.builtInDualWideCamera, for: .video, position: .back) {
+                device = dualWideCamera
+            }
+        }
+        
+        if device == nil {
+            if let dualCamera = AVCaptureDevice.default(.builtInDualCamera, for: .video, position: .back) {
+                device = dualCamera
+            } else if let wideAngle = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .back) {
+                device = wideAngle
+            } else {
+                device = AVCaptureDevice.default(for: .video)
+            }
+        }
+        
+        guard let videoDevice = device else {
             failure(.deviceFailure(.videoUnavailable))
             return
         }
@@ -444,6 +474,9 @@ public class QRScannerView: UIView {
     private func setupOverlayMask(animated: Bool = false) {
         // Step 1: Remove existing overlay layer (if any)
         overlayLayer?.removeFromSuperlayer()
+        overlayLayer = nil
+        
+        guard showOverlay else { return }
         
         // Step 2: Create new overlay layer
         let overlay = CAShapeLayer()

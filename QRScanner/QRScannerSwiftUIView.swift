@@ -1,40 +1,46 @@
 import SwiftUI
 
 // MARK: - QRScannerSwiftUIView
+
 public struct QRScannerSwiftUIView: UIViewRepresentable {
-    
     public typealias Configuration = QRScannerView.Input
-    
-    
+
     // MARK: - Properties
+
     private let configuration: Configuration
     private let onSuccess: (String) -> Void
     private let onFailure: (QRScannerError) -> Void
     private let onTorchActiveChange: ((Bool) -> Void)?
     @Binding private var isScanning: Bool
     @Binding private var torchActive: Bool
-    @Binding private var shouldRescan:Bool
-    
+    @Binding private var shouldRescan: Bool
+
     // MARK: - Initializers
+
     public init(
         configuration: Configuration = Configuration(),
         isScanning: Binding<Bool> = .constant(true),
         torchActive: Binding<Bool> = .constant(false),
         shouldRescan: Binding<Bool> = .constant(false),
+        showOverlay: Bool = true,
         onSuccess: @escaping (String) -> Void,
         onFailure: @escaping (QRScannerError) -> Void,
         onTorchActiveChange: ((Bool) -> Void)? = nil
     ) {
+        var configuration = configuration
+        configuration.showOverlay = showOverlay
+        
         self.configuration = configuration
-        self._isScanning = isScanning
-        self._torchActive = torchActive
-        self._shouldRescan = shouldRescan
+        _isScanning = isScanning
+        _torchActive = torchActive
+        _shouldRescan = shouldRescan
         self.onSuccess = onSuccess
         self.onFailure = onFailure
         self.onTorchActiveChange = onTorchActiveChange
     }
-    
+
     // MARK: - UIViewRepresentable
+
     public func makeUIView(context: Context) -> QRScannerView {
         let qrScannerView = QRScannerView()
 
@@ -44,7 +50,7 @@ public struct QRScannerSwiftUIView: UIViewRepresentable {
         if isScanning {
             qrScannerView.startRunning()
         }
-        
+
         // Start overlay animation after a short delay to ensure view is properly laid out
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
             qrScannerView.startOverlayAnimation()
@@ -52,28 +58,25 @@ public struct QRScannerSwiftUIView: UIViewRepresentable {
 
         return qrScannerView
     }
-    
+
     public func updateUIView(_ uiView: QRScannerView, context: Context) {
-    
-        
-        if shouldRescan{
+        if shouldRescan {
             uiView.rescan()
-            DispatchQueue.main.async{
+            DispatchQueue.main.async {
                 self.isScanning = true
                 self.shouldRescan = false
             }
-        }else{
+        } else {
             if isScanning {
                 uiView.startRunning()
-            }else{
+            } else {
                 uiView.stopRunning()
             }
         }
-       
-        
+
         uiView.setTorchActive(isOn: torchActive)
     }
-    
+
     public func makeCoordinator() -> Coordinator {
         Coordinator(
             isScanning: $isScanning,
@@ -83,17 +86,19 @@ public struct QRScannerSwiftUIView: UIViewRepresentable {
             onTorchActiveChange: onTorchActiveChange
         )
     }
-    
+
     // MARK: - Coordinator
+
     public class Coordinator: NSObject, QRScannerViewDelegate {
         @Binding private var isScanning: Bool
         @Binding private var torchActive: Bool
+
         private let onSuccess: (String) -> Void
         private let onFailure: (QRScannerError) -> Void
         private let onTorchActiveChange: ((Bool) -> Void)?
-        
+
         weak var qrScannerView: QRScannerView?
-        
+
         init(
             isScanning: Binding<Bool>,
             torchActive: Binding<Bool>,
@@ -101,24 +106,27 @@ public struct QRScannerSwiftUIView: UIViewRepresentable {
             onFailure: @escaping (QRScannerError) -> Void,
             onTorchActiveChange: ((Bool) -> Void)?
         ) {
-            self._isScanning = isScanning
-            self._torchActive = torchActive
+            _isScanning = isScanning
+            _torchActive = torchActive
             self.onSuccess = onSuccess
             self.onFailure = onFailure
             self.onTorchActiveChange = onTorchActiveChange
         }
-        
+
         public func qrScannerView(_ qrScannerView: QRScannerView, didSuccess code: String) {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1){
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                 self.isScanning = false
             }
             onSuccess(code)
         }
-        
-        public func qrScannerView(_ qrScannerView: QRScannerView, didFailure error: QRScannerError) {
+
+        public func qrScannerView(
+            _ qrScannerView: QRScannerView,
+            didFailure error: QRScannerError
+        ) {
             onFailure(error)
         }
-        
+
         public func qrScannerView(_ qrScannerView: QRScannerView, didChangeTorchActive isOn: Bool) {
             Task { @MainActor in
                 self.torchActive = isOn
@@ -127,4 +135,3 @@ public struct QRScannerSwiftUIView: UIViewRepresentable {
         }
     }
 }
-
