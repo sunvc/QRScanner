@@ -911,7 +911,10 @@ public class QRScannerView: UIView {
         let path = UIBezierPath(rect: self.bounds)
 
         // Create focus path based on current bounds
-        let focusPath = UIBezierPath(roundedRect: bounds, cornerRadius: overlayCornerRadius)
+        let defaultRect = calculation()
+        let scale = defaultRect.width > 0 ? bounds.width / defaultRect.width : 1.0
+        let dynamicRadius = overlayCornerRadius * scale
+        let focusPath = UIBezierPath(roundedRect: bounds, cornerRadius: dynamicRadius)
 
         // Calculate transform to match focusImageView's visual state
         // 1. Center alignment offset (from bounds origin to anchor point)
