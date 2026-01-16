@@ -72,18 +72,18 @@ public class QRScannerView: UIView {
     // MARK: - Public
     
     /**
-     * 配置QR扫描器
-     * 
-     * 这是QRScannerView的主要初始化方法，负责设置所有必要的组件和配置。
-     * 
-     * @param delegate 扫描结果回调代理
-     * @param input 配置参数，包含扫码框图片、动画时长等设置
+     * Configure QR Scanner
+     *
+     * This is the main initialization method for QRScannerView, responsible for setting up all necessary components and configurations.
+     *
+     * @param delegate Callback delegate for scan results
+     * @param input Configuration parameters, including scan frame image, animation duration, etc.
      */
     public func configure(delegate: QRScannerViewDelegate, input: Input = .default) {
-        // 设置代理
+        // Set delegate
         self.delegate = delegate
         
-        // 应用输入配置参数
+        // Apply input configuration parameters
         if let focusImage = input.focusImage {
             self.focusImage = focusImage
         }
@@ -96,78 +96,78 @@ public class QRScannerView: UIView {
         
         self.scanningAreaLimit = input.scanningAreaLimit
         
-        // 按顺序初始化各个组件
-        configureSession(metadataObjectTypes: input.metadataObjectTypes)  // 配置相机会话
-        addPreviewLayer()           // 添加预览层
-        setupImageViews()          // 设置扫码框图片
-        setupOverlayMask()         // 设置遮罩层
-        setupOrientationObserver() // 设置设备方向监听
+        // Initialize components in order
+        configureSession(metadataObjectTypes: input.metadataObjectTypes)  // Configure camera session
+        addPreviewLayer()           // Add preview layer
+        setupImageViews()          // Setup scan frame image
+        setupOverlayMask()         // Setup overlay mask
+        setupOrientationObserver() // Setup device orientation observer
     }
     
     /**
-     * 开始扫描
-     * 
-     * 启动相机会话开始扫描QR码。该方法会在后台队列中执行以避免阻塞主线程。
+     * Start Scanning
+     *
+     * Starts the camera session to begin scanning for QR codes. This method executes on a background queue to avoid blocking the main thread.
      */
     public func startRunning() {
-        guard isAuthorized() else { return }        // 检查相机权限
-        guard !session.isRunning else { return }   // 避免重复启动
-        metadataOutputEnable = true                 // 启用元数据输出
+        guard isAuthorized() else { return }        // Check camera authorization
+        guard !session.isRunning else { return }   // Avoid duplicate start
+        metadataOutputEnable = true                 // Enable metadata output
         metadataQueue.async { [weak self] in
-            self?.session.startRunning()            // 在后台队列启动会话
+            self?.session.startRunning()            // Start session on background queue
         }
     }
     
     /**
-     * 停止扫描
-     * 
-     * 停止相机会话以节省资源。该方法会在后台队列中执行。
+     * Stop Scanning
+     *
+     * Stops the camera session to save resources. This method executes on a background queue.
      */
     public func stopRunning() {
-        guard session.isRunning else { return }    // 检查会话是否正在运行
+        guard session.isRunning else { return }    // Check if session is running
         videoDataQueue.async { [weak self] in
-            self?.session.stopRunning()             // 在后台队列停止会话
+            self?.session.stopRunning()             // Stop session on background queue
         }
-        metadataOutputEnable = false               // 禁用元数据输出
+        metadataOutputEnable = false               // Disable metadata output
     }
     
     /**
-     * 重新扫描
-     * 
-     * 重置扫描器状态并重新开始扫描。该方法会清理当前的UI状态，
-     * 重新创建扫码框和遮罩层，并带有动画效果。
-     * 
-     * 使用场景：
-     * - 扫描完成后需要继续扫描
-     * - 扫描出错后重新开始
-     * - 用户手动触发重新扫描
+     * Rescan
+     *
+     * Resets the scanner state and restarts scanning. This method cleans up the current UI state,
+     * recreates the scan frame and overlay mask with animation effects.
+     *
+     * Usage scenarios:
+     * - Continue scanning after completion
+     * - Restart after scan error
+     * - User manually triggers rescan
      */
     public func rescan() {
-        // 检查相机权限
+        // Check camera authorization
         guard isAuthorized() else { return }
         
-        // 步骤1：停止当前扫描
+        // Step 1: Stop current scanning
         metadataOutputEnable = false
         
-        // 步骤2：清理UI状态
-        focusImageView.removeFromSuperview()        // 移除扫码框
+        // Step 2: Cleanup UI state
+        focusImageView.removeFromSuperview()        // Remove scan frame
         
-        // 步骤3：清理遮罩层
+        // Step 3: Cleanup overlay mask
         overlayLayer?.removeFromSuperlayer()
         overlayLayer = nil
         
-        // 步骤4：重置扫码框变换状态
+        // Step 4: Reset scan frame transform state
         focusImageView.transform = CGAffineTransform.identity
         
-        // 步骤5：重新创建扫码框
+        // Step 5: Recreate scan frame
         focusImageView = UIImageView(frame: calculation())
         focusImageView.image = focusImage ?? UIImage(named: "scan_qr_focus", in: .module, compatibleWith: nil)
         addSubview(focusImageView)
         
-        // 步骤6：重新设置遮罩层（带动画效果）
+        // Step 6: Reset overlay mask (with animation)
         setupOverlayMask(animated: true)
         
-        // 步骤7：延迟重启扫描（避免时序问题）
+        // Step 7: Delay restart scanning (avoid timing issues)
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
             self?.metadataOutputEnable = true
             self?.startRunning()
@@ -175,21 +175,21 @@ public class QRScannerView: UIView {
     }
     
     /**
-     * 启动遮罩层的缩放动画效果
-     * 
-     * 这个方法创建一个从小到大的缩放动画效果，为扫描界面提供视觉反馈。
-     * 动画从30%的缩放开始，逐渐放大到正常尺寸，增强用户体验。
-     * 
-     * 实现步骤：
-     * 1. 计算初始缩放状态的frame（30%大小）
-     * 2. 创建对应的初始路径
-     * 3. 立即设置初始状态
-     * 4. 延迟执行缩放动画到正常尺寸
+     * Start Overlay Zoom Animation
+     *
+     * This method creates a zoom-in animation effect, providing visual feedback for the scanning interface.
+     * The animation starts from 30% scale and gradually zooms to normal size, enhancing user experience.
+     *
+     * Implementation steps:
+     * 1. Calculate the frame for initial scaled state (30% size)
+     * 2. Create corresponding initial path
+     * 3. Immediately set initial state
+     * 4. Delay execution of zoom animation to normal size
      */
     public func startOverlayAnimation() {
         guard let overlayLayer = overlayLayer else { return }
         
-        // 设置动画的初始小尺寸状态
+        // Set initial small size state for animation
         let initialScale: CGFloat = 0.3
         let finalFrame = calculation()
         let centerX = finalFrame.midX
@@ -203,33 +203,33 @@ public class QRScannerView: UIView {
             height: scaledHeight
         )
         
-        // 创建初始的小尺寸路径
+        // Create initial small size path
         let initialPath = UIBezierPath(rect: self.bounds)
         let initialFocusPath = UIBezierPath(roundedRect: scaledFrame, cornerRadius: overlayCornerRadius * initialScale)
         initialPath.append(initialFocusPath.reversing())
         
-        // 立即设置初始状态
+        // Immediately set initial state
         overlayLayer.path = initialPath.cgPath
         focusImageView.frame = scaledFrame
         
-        // 延迟执行动画
+        // Delay animation execution
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
             self?.animateOverlayMaskScale()
         }
     }
     
     /**
-     * 控制设备闪光灯的开关状态
-     * 
-     * 这个方法用于在扫描过程中控制设备的闪光灯，帮助在光线不足的环境下进行扫描。
-     * 
-     * @param isOn 是否开启闪光灯，true为开启，false为关闭
-     * 
-     * 安全检查：
-     * - 确保在主线程执行
-     * - 检查设备是否支持闪光灯
-     * - 检查闪光灯是否可用
-     * - 确保扫描器已启用
+     * Control Device Torch State
+     *
+     * This method controls the device's torch during scanning to help in low-light environments.
+     *
+     * @param isOn Whether to turn on the torch, true for on, false for off
+     *
+     * Safety checks:
+     * - Ensure execution on main thread
+     * - Check if device supports torch
+     * - Check if torch is available
+     * - Ensure scanner is enabled
      */
     public func setTorchActive(isOn: Bool) {
         assert(Thread.isMainThread)
@@ -244,33 +244,33 @@ public class QRScannerView: UIView {
     }
     
     /**
-     * 布局子视图
-     * 
-     * 当视图的bounds发生变化时（如设备旋转、尺寸调整），系统会自动调用此方法。
-     * 负责更新预览层和扫描区域的布局，确保界面在不同尺寸下正确显示。
-     * 
-     * 主要功能：
-     * - 调用父类的layoutSubviews
-     * - 更新预览层的frame以适应新的bounds
-     * - 重新计算和更新扫描区域
+     * Layout Subviews
+     *
+     * System automatically calls this method when view bounds change (e.g., device rotation, resize).
+     * Responsible for updating layout of preview layer and scanning area, ensuring correct display across different sizes.
+     *
+     * Main functions:
+     * - Call super.layoutSubviews
+     * - Update preview layer frame to fit new bounds
+     * - Recalculate and update scanning area
      */
     public override func layoutSubviews() {
         super.layoutSubviews()
         
-        // 更新预览层和遮罩层的frame
+        // Update frames for preview layer and overlay layer
         let boundsChanged = previewLayer?.frame != self.bounds
         if boundsChanged {
             previewLayer?.frame = self.bounds
             overlayLayer?.frame = self.bounds
             
-            // 更新扫码框位置
+            // Update scan frame position
             focusImageView.frame = calculation()
         }
         
-        // 确保视频方向正确
+        // Ensure correct video orientation
         updateVideoOrientation()
         
-        // 如果bounds发生变化，更新遮罩
+        // If bounds changed, update mask
         if boundsChanged {
             updateOverlayMask()
             if scanningAreaLimit{
@@ -280,18 +280,18 @@ public class QRScannerView: UIView {
     }
     
     /**
-     * 析构函数
-     * 
-     * 当QRScannerView实例被释放时自动调用，负责清理所有资源和观察者，
-     * 防止内存泄漏和潜在的崩溃问题。
-     * 
-     * 清理步骤：
-     * 1. 关闭闪光灯
-     * 2. 停止摄像头会话
-     * 3. 移除所有输入和输出
-     * 4. 移除预览层
-     * 5. 移除设备方向观察者
-     * 6. 清理闪光灯状态观察者
+     * Deinitializer
+     *
+     * Automatically called when QRScannerView instance is deallocated. Responsible for cleaning up all resources and observers,
+     * preventing memory leaks and potential crashes.
+     *
+     * Cleanup steps:
+     * 1. Turn off torch
+     * 2. Stop camera session
+     * 3. Remove all inputs and outputs
+     * 4. Remove preview layer
+     * 5. Remove device orientation observer
+     * 6. Cleanup torch state observer
      */
     deinit {
         setTorchActive(isOn: false)
@@ -408,51 +408,51 @@ public class QRScannerView: UIView {
     
     // MARK: UI Setup
     /**
-     * 设置扫码框图片视图
-     * 
-     * 初始化并配置扫码框的UI组件，包括扫码框图片和遮罩层。
-     * 这是UI初始化的关键步骤，为后续的扫码匹配动画做准备。
+     * Setup Scan Frame Image View
+     *
+     * Initializes and configures UI components for the scan frame, including the image and overlay mask.
+     * This is a key step in UI initialization, preparing for subsequent scan match animations.
      */
     private func setupImageViews() {
-        // 创建扫码框图片视图，使用计算出的初始位置和尺寸
+        // Create scan frame image view using calculated initial position and size
         focusImageView = UIImageView(frame: calculation())
         
-        // 设置扫码框图片，优先使用自定义图片，否则使用默认图片
+        // Set scan frame image, prioritize custom image, otherwise use default
         focusImageView.image = focusImage ?? UIImage(named: "scan_qr_focus", in: .module, compatibleWith: nil)
         
-        // 将扫码框添加到视图层级中
+        // Add scan frame to view hierarchy
         addSubview(focusImageView)
         
-        // 设置遮罩层（不带动画，动画将由SwiftUI触发）
+        // Setup overlay mask (without animation, animation will be triggered by SwiftUI)
         setupOverlayMask(animated: false)
     }
     
-    /// 创建遮罩层，focusImage区域透明，其他区域半透明黑色
+    /// Create overlay mask, transparent in focusImage area, semi-transparent black elsewhere
     /**
-     * 设置遮罩层
-     * 
-     * 创建一个半透明的遮罩层，覆盖整个视图，并在扫码框位置挖出一个透明区域。
-     * 支持动画模式，可以从小尺寸逐渐放大到目标尺寸。
-     * 
-     * 实现原理：
-     * 1. 使用CAShapeLayer创建遮罩
-     * 2. 使用UIBezierPath的evenOdd填充规则创建挖空效果
-     * 3. 支持动画模式下的缩放效果
-     * 
-     * @param animated 是否启用动画效果
+     * Setup Overlay Mask
+     *
+     * Creates a semi-transparent overlay mask covering the entire view, with a transparent cutout at the scan frame position.
+     * Supports animation mode, scaling from small size to target size.
+     *
+     * Implementation principle:
+     * 1. Use CAShapeLayer to create mask
+     * 2. Use UIBezierPath evenOdd fill rule to create cutout effect
+     * 3. Support scaling effect in animation mode
+     *
+     * @param animated Whether to enable animation effect
      */
     private func setupOverlayMask(animated: Bool = false) {
-        // 步骤1：移除现有的遮罩层（如果存在）
+        // Step 1: Remove existing overlay layer (if any)
         overlayLayer?.removeFromSuperlayer()
         
-        // 步骤2：创建新的遮罩层
+        // Step 2: Create new overlay layer
         let overlay = CAShapeLayer()
-        overlay.fillColor = UIColor.black.withAlphaComponent(0.5).cgColor  // 半透明黑色
+        overlay.fillColor = UIColor.black.withAlphaComponent(0.5).cgColor  // Semi-transparent black
         overlay.frame = self.bounds
         
         if animated {
-            // 动画模式：创建小尺寸的初始状态，稍后会放大
-            let initialScale: CGFloat = 0.3  // 初始缩放比例
+            // Animation mode: Create small initial state, will scale up later
+            let initialScale: CGFloat = 0.3  // Initial scale ratio
             let finalFrame = focusImageView.frame
             let centerX = finalFrame.midX
             let centerY = finalFrame.midY
@@ -465,37 +465,37 @@ public class QRScannerView: UIView {
                 height: scaledHeight
             )
             
-            // 创建初始的小尺寸透明区域路径
-            let path = UIBezierPath(rect: self.bounds)  // 覆盖整个视图的实心路径
+            // Create initial small transparent area path
+            let path = UIBezierPath(rect: self.bounds)  // Solid path covering entire view
             let focusPath = UIBezierPath(roundedRect: scaledFrame, cornerRadius: overlayCornerRadius * initialScale)
-            path.append(focusPath.reversing())  // 挖出透明区域
+            path.append(focusPath.reversing())  // Create cutout for transparent area
             overlay.path = path.cgPath
             
-            // 同步设置focusImageView的初始小尺寸
+            // Synchronously set initial small size for focusImageView
             focusImageView.frame = scaledFrame
         } else {
-            // 静态模式：直接创建最终状态
+            // Static mode: Create final state directly
             let path = UIBezierPath(rect: self.bounds)
             let focusPath = UIBezierPath(roundedRect: focusImageView.frame, cornerRadius: overlayCornerRadius)
             path.append(focusPath.reversing())
             overlay.path = path.cgPath
         }
         
-        // 步骤3：设置填充规则为evenOdd，实现挖空效果
+        // Step 3: Set fill rule to evenOdd to achieve cutout effect
         overlay.fillRule = .evenOdd
         
-        // 步骤4：将遮罩层插入到正确的层级位置
-        // 确保遮罩层在预览层之上，但在扫码框之下
+        // Step 4: Insert overlay layer at correct hierarchy position
+        // Ensure overlay layer is above preview layer but below scan frame
         if let previewLayer = self.previewLayer {
             layer.insertSublayer(overlay, above: previewLayer)
         } else {
             layer.insertSublayer(overlay, at: 0)
         }
         
-        // 步骤5：保存遮罩层引用
+        // Step 5: Save overlay layer reference
         self.overlayLayer = overlay
         
-        // 步骤6：如果需要动画，延迟执行缩放动画
+        // Step 6: If animation needed, delay execution of scale animation
         if animated {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
                 self?.animateOverlayMaskScale()
@@ -503,11 +503,11 @@ public class QRScannerView: UIView {
         }
     }
     
-    /// 更新遮罩层的透明区域位置和大小
+    /// Update position and size of transparent area in overlay mask
     private func updateOverlayMask() {
         guard let overlayLayer = self.overlayLayer else { return }
         
-        // 首先更新遮罩层的frame以匹配当前视图bounds
+        // First update overlay layer frame to match current view bounds
         overlayLayer.frame = self.bounds
         
         // Create path for the entire view
@@ -516,7 +516,7 @@ public class QRScannerView: UIView {
         // Create transparent hole for current focus area with rounded corners
         let focusPath = UIBezierPath(roundedRect: focusImageView.frame, cornerRadius: overlayCornerRadius)
         
-        // 应用与focusImageView相同的旋转变换
+        // Apply same rotation transform as focusImageView
         if !focusImageView.transform.isIdentity {
             let center = CGPoint(x: focusImageView.frame.midX, y: focusImageView.frame.midY)
             var transform = CGAffineTransform.identity
@@ -531,81 +531,81 @@ public class QRScannerView: UIView {
         overlayLayer.path = path.cgPath
     }
     
-    /// 执行遮罩层透明区域的移动和旋转动画
+    /// Execute move and rotate animation for overlay mask transparent area
     /**
-     * 执行遮罩层的移动和旋转动画
-     * 
-     * 该函数负责创建一个平滑的遮罩层动画，使透明区域从当前位置移动到目标位置，
-     * 并同时应用旋转变换以匹配QR码的角度。
-     * 
-     * 实现原理：
-     * 1. 使用CAShapeLayer的path属性进行动画
-     * 2. 创建一个覆盖整个视图的路径，然后挖出一个透明的旋转矩形
-     * 3. 通过CGAffineTransform实现围绕中心点的旋转
-     * 
-     * @param targetFrame 目标透明区域的frame
-     * @param rotation 旋转角度（弧度）
-     * @param duration 动画持续时间
+     * Execute Overlay Mask Move and Rotate Animation
+     *
+     * This function creates a smooth overlay mask animation, moving the transparent area from current position to target position,
+     * while applying rotation transform to match QR code angle.
+     *
+     * Implementation principle:
+     * 1. Animate using CAShapeLayer's path property
+     * 2. Create a path covering entire view, then cut out a rotating rectangle
+     * 3. Implement rotation around center using CGAffineTransform
+     *
+     * @param targetFrame Target frame for transparent area
+     * @param rotation Rotation angle (radians)
+     * @param duration Animation duration
      */
     private func animateOverlayMaskMovement(to targetFrame: CGRect, rotation: CGFloat, duration: TimeInterval) {
         guard let overlayLayer = self.overlayLayer else { return }
         
-        // 步骤1：更新遮罩层的frame以匹配当前视图bounds
+        // Step 1: Update overlay layer frame to match current view bounds
         overlayLayer.frame = self.bounds
         
-        // 步骤2：保存当前路径作为动画起始状态
+        // Step 2: Save current path as animation start state
         let fromPath = overlayLayer.path
         
-        // 步骤3：创建目标路径（覆盖整个视图的实心路径）
+        // Step 3: Create target path (solid path covering entire view)
         let toPath = UIBezierPath(rect: self.bounds)
         
-        // 步骤4：创建透明区域的路径（带圆角）
+        // Step 4: Create transparent area path (with rounded corners)
         let targetFocusPath = UIBezierPath(roundedRect: targetFrame, cornerRadius: overlayCornerRadius)
         
-        // 步骤5：应用旋转变换到透明区域
-        // 使用标准的旋转变换：平移到中心 -> 旋转 -> 平移回原位置
+        // Step 5: Apply rotation transform to transparent area
+        // Use standard rotation transform: Translate to center -> Rotate -> Translate back
         let center = CGPoint(x: targetFrame.midX, y: targetFrame.midY)
         var transform = CGAffineTransform.identity
-        transform = transform.translatedBy(x: center.x, y: center.y)    // 移动到旋转中心
-        transform = transform.rotated(by: rotation)                     // 执行旋转
-        transform = transform.translatedBy(x: -center.x, y: -center.y)  // 移回原位置
+        transform = transform.translatedBy(x: center.x, y: center.y)    // Move to rotation center
+        transform = transform.rotated(by: rotation)                     // Execute rotation
+        transform = transform.translatedBy(x: -center.x, y: -center.y)  // Move back to original position
         
-        // 步骤6：应用变换并创建挖空效果
+        // Step 6: Apply transform and create cutout effect
         targetFocusPath.apply(transform)
-        toPath.append(targetFocusPath.reversing())  // reversing()创建挖空效果
+        toPath.append(targetFocusPath.reversing())  // reversing() creates cutout effect
         
-        // 步骤7：创建路径动画
+        // Step 7: Create path animation
         let pathAnimation = CABasicAnimation(keyPath: "path")
-        pathAnimation.fromValue = fromPath          // 起始路径
-        pathAnimation.toValue = toPath.cgPath       // 目标路径
-        pathAnimation.duration = duration           // 动画时长
-        pathAnimation.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)  // 缓动函数
-        pathAnimation.fillMode = .forwards          // 保持最终状态
-        pathAnimation.isRemovedOnCompletion = false // 动画完成后不移除
+        pathAnimation.fromValue = fromPath          // Start path
+        pathAnimation.toValue = toPath.cgPath       // Target path
+        pathAnimation.duration = duration           // Animation duration
+        pathAnimation.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)  // Timing function
+        pathAnimation.fillMode = .forwards          // Keep final state
+        pathAnimation.isRemovedOnCompletion = false // Do not remove after completion
         
-        // 步骤8：执行动画
+        // Step 8: Execute animation
         overlayLayer.add(pathAnimation, forKey: "pathMoveAnimation")
         
-        // 步骤9：设置最终状态（确保动画结束后状态正确）
+        // Step 9: Set final state (ensure correct state after animation ends)
         overlayLayer.path = toPath.cgPath
     }
     
-    /// 执行透明区域从小到大的缩放动画
+    /// Execute zoom-in animation for transparent area
     private func animateOverlayMaskScale() {
         guard let overlayLayer = self.overlayLayer else { return }
         
-        // 获取当前的小尺寸状态（初始状态）
+        // Get current small size state (initial state)
         let currentPath = overlayLayer.path
         
-        // 计算最终的合适尺寸状态（回到原始的calculation()计算出的尺寸）
+        // Calculate final appropriate size state (back to original calculation() size)
         let finalFrame = calculation()
         
-        // 创建最终路径（合适尺寸）
+        // Create final path (appropriate size)
         let finalPath = UIBezierPath(rect: self.bounds)
         let finalFocusPath = UIBezierPath(roundedRect: finalFrame, cornerRadius: overlayCornerRadius)
         finalPath.append(finalFocusPath.reversing())
         
-        // 创建遮罩层路径动画
+        // Create overlay layer path animation
         let pathAnimation = CABasicAnimation(keyPath: "path")
         pathAnimation.fromValue = currentPath
         pathAnimation.toValue = finalPath.cgPath
@@ -614,58 +614,58 @@ public class QRScannerView: UIView {
         pathAnimation.fillMode = .forwards
         pathAnimation.isRemovedOnCompletion = false
         
-        // 执行遮罩层动画
+        // Execute overlay layer animation
         overlayLayer.add(pathAnimation, forKey: "pathScaleAnimation")
         
-        // 创建focusImageView的frame动画
+        // Create focusImageView frame animation
         UIView.animate(withDuration: overlayAnimationDuration, delay: 0, options: [.curveEaseOut], animations: { [weak self] in
             self?.focusImageView.frame = finalFrame
         }, completion: nil)
         
-        // 设置最终状态
+        // Set final state
         overlayLayer.path = finalPath.cgPath
     }
     
     // MARK: Calculations
     /**
-     * 计算扫码框的位置和尺寸
-     * 
-     * 根据设备方向和屏幕尺寸，智能计算扫码框的最佳位置和大小。
-     * 确保在不同设备和方向下都有良好的用户体验。
-     * 
-     * 设计原则：
-     * - 竖屏：使用黄金比例(0.618)确定尺寸，位置稍微偏上便于操作
-     * - 横屏：使用较小尺寸避免遮挡过多内容，完全居中显示
-     * 
-     * @return 扫码框的CGRect，包含位置和尺寸信息
+     * Calculate Scan Frame Position and Size
+     *
+     * Intelligently calculates the best position and size for the scan frame based on device orientation and screen dimensions.
+     * Ensures good user experience across different devices and orientations.
+     *
+     * Design principles:
+     * - Portrait: Use golden ratio (0.618) for size, position slightly higher for easier operation
+     * - Landscape: Use smaller size to avoid blocking too much content, display completely centered
+     *
+     * @return CGRect for scan frame, containing position and size info
      */
     private func calculation() -> CGRect {
         let bounds = self.bounds
         let isLandscape = bounds.width > bounds.height
         
-        // 步骤1：根据设备方向计算扫码框尺寸
+        // Step 1: Calculate scan frame size based on device orientation
         let scanSize: CGFloat
         if isLandscape {
-            // 横屏模式：使用较保守的尺寸，避免占用过多屏幕空间
-            // 取高度的60%和宽度的40%中的较小值
+            // Landscape mode: Use conservative size to avoid taking up too much screen space
+            // Take smaller of 60% height and 40% width
             scanSize = min(bounds.height * 0.6, bounds.width * 0.4)
         } else {
-            // 竖屏模式：使用黄金比例(0.618)计算，提供最佳视觉效果
-            // 基于屏幕较短边的61.8%
+            // Portrait mode: Use golden ratio (0.618) for best visual effect
+            // Based on 61.8% of shorter screen side
             scanSize = min(bounds.width, bounds.height) * 0.618
         }
         
-        // 步骤2：计算水平居中位置
+        // Step 2: Calculate horizontal center position
         let x = (bounds.width - scanSize) / 2
         
-        // 步骤3：根据方向计算垂直位置
+        // Step 3: Calculate vertical position based on orientation
         let y: CGFloat
         if isLandscape {
-            // 横屏时完全垂直居中，提供平衡的视觉效果
+            // Landscape: Completely vertically centered for balanced visual effect
             y = (bounds.height - scanSize) / 2
         } else {
-            // 竖屏时稍微偏上(19.1%位置)，便于用户操作
-            // 这个位置既不会太靠上影响状态栏，也不会太居中影响下方操作
+            // Portrait: Slightly higher (19.1% position) for easier operation
+            // This position is not too high to affect status bar, nor too centered to affect bottom operations
             y = bounds.height * 0.191
         }
         
@@ -690,22 +690,22 @@ public class QRScannerView: UIView {
     // MARK: Device Orientation
     private func setupOrientationObserver() {
         if UIDevice.current.userInterfaceIdiom == .phone {
-            // iPhone: 检查应用是否只支持竖屏
+            // iPhone: Check if app only supports portrait
             let supportedOrientations = UIApplication.shared.supportedInterfaceOrientations(for: UIApplication.shared.windows.first)
             let isPortraitOnly = supportedOrientations == .portrait || supportedOrientations == .portraitUpsideDown
             
             if isPortraitOnly {
-                // 只支持竖屏的iPhone应用，不需要监听方向变化，直接设置初始方向
+                // For portrait-only iPhone apps, no need to listen for orientation changes, set initial orientation directly
                 currentOrientation = .portrait
                 updateVideoOrientation()
                 return
             }
         }
         
-        // 启用设备方向通知
+        // Enable device orientation notifications
         UIDevice.current.beginGeneratingDeviceOrientationNotifications()
         
-        // 监听设备旋转通知
+        // Listen for device rotation notifications
         orientationObserver = NotificationCenter.default.addObserver(
             forName: UIDevice.orientationDidChangeNotification,
             object: nil,
@@ -714,7 +714,7 @@ public class QRScannerView: UIView {
             self?.handleOrientationChange()
         }
         
-        // 初始化当前方向
+        // Initialize current orientation
         currentOrientation = UIDevice.current.orientation
     }
     
@@ -729,7 +729,7 @@ public class QRScannerView: UIView {
     private func handleOrientationChange() {
         let newOrientation = UIDevice.current.orientation
         
-        // 只处理有效的方向变化
+        // Only handle valid orientation changes
         guard newOrientation != currentOrientation,
               newOrientation.isValidInterfaceOrientation else {
             return
@@ -738,17 +738,17 @@ public class QRScannerView: UIView {
         let previousOrientation = currentOrientation
         currentOrientation = newOrientation
         
-        // 立即更新视频方向
+        // Immediately update video orientation
         updateVideoOrientation()
         
-        // 使用动画更新UI布局
+        // Update UI layout using animation
         UIView.animate(withDuration: 0.3, delay: 0.1, options: [.curveEaseInOut]) { [weak self] in
-            // 强制布局更新
+            // Force layout update
             self?.setNeedsLayout()
             self?.layoutIfNeeded()
         } completion: { [weak self] _ in
             guard let self = self else{ return }
-            // 动画完成后重新设置遮罩层以确保正确适配
+            // Reset overlay mask after animation completes to ensure correct adaptation
             self.setupOverlayMask(animated: false)
             
             if self.scanningAreaLimit{
@@ -763,7 +763,7 @@ public class QRScannerView: UIView {
             return
         }
         
-        // 获取当前应用的界面方向
+        // Get current app interface orientation
         let interfaceOrientation: UIInterfaceOrientation
         if #available(iOS 13.0, *) {
             interfaceOrientation = UIApplication.shared.windows.first?.windowScene?.interfaceOrientation ?? .portrait
@@ -773,17 +773,17 @@ public class QRScannerView: UIView {
         
         let videoOrientation: AVCaptureVideoOrientation
         
-        // 对于只支持竖屏的应用，优先使用界面方向
+        // For portrait-only apps, prioritize interface orientation
         if UIDevice.current.userInterfaceIdiom == .phone {
-            // iPhone: 检查应用是否只支持竖屏
+            // iPhone: Check if app only supports portrait
             let supportedOrientations = UIApplication.shared.supportedInterfaceOrientations(for: UIApplication.shared.windows.first)
             let isPortraitOnly = supportedOrientations == .portrait || supportedOrientations == .portraitUpsideDown
             
             if isPortraitOnly {
-                // 只支持竖屏的iPhone应用，始终使用竖屏方向
+                // Portrait-only iPhone apps always use portrait orientation
                 videoOrientation = .portrait
             } else {
-                // 支持多方向的iPhone应用，使用界面方向
+                // Multi-orientation iPhone apps use interface orientation
                 switch interfaceOrientation {
                 case .portrait:
                     videoOrientation = .portrait
@@ -798,7 +798,7 @@ public class QRScannerView: UIView {
                 }
             }
         } else {
-            // iPad: 使用界面方向
+            // iPad: Use interface orientation
             switch interfaceOrientation {
             case .portrait:
                 videoOrientation = .portrait
@@ -816,15 +816,15 @@ public class QRScannerView: UIView {
         connection.videoOrientation = videoOrientation
     }
     
-    /// 设置扫码区域限制
+    /// Set scanning area limit
     private func updateScanningArea() {
         guard let previewLayer = self.previewLayer else { return }
         
-        // 计算扫码框在预览层中的相对位置
+        // Calculate relative position of scan frame in preview layer
         let scanRect = calculation()
         let previewBounds = previewLayer.bounds
         
-        // 转换为相对坐标 (0-1)
+        // Convert to relative coordinates (0-1)
         let rectOfInterest = CGRect(
             x: scanRect.minY / previewBounds.height,
             y: scanRect.minX / previewBounds.width,
@@ -832,37 +832,37 @@ public class QRScannerView: UIView {
             height: scanRect.width / previewBounds.width
         )
         
-        // 设置扫码区域限制
+        // Set scanning area limit
         metadataOutput.rectOfInterest = rectOfInterest
     }
     
     /**
-     * 移动和调整扫码框以匹配检测到的QR码
-     * 
-     * 该函数是QR码扫描框精确匹配的核心算法，解决了以下关键问题：
-     * 1. 扫码框形状变形（长条形 -> 正方形）
-     * 2. 角度偏移（90度旋转错误）
-     * 3. 中心点不对齐
-     * 4. 尺寸不匹配
-     * 
-     * @param corners QR码的四个角点坐标，顺序为：[左上, 右上, 右下, 左下]
-     *                这些坐标已经通过previewLayer转换到视图坐标系
+     * Move and Adjust Scan Frame to Match Detected QR Code
+     *
+     * This function is the core algorithm for precise matching of QR code scan frame, solving key issues:
+     * 1. Scan frame shape distortion (rectangular -> square)
+     * 2. Angle offset (90-degree rotation error)
+     * 3. Center point misalignment
+     * 4. Size mismatch
+     *
+     * @param corners Coordinates of 4 corner points of QR code, order: [TopLeft, TopRight, BottomRight, BottomLeft]
+     *                These coordinates have been converted to view coordinate system via previewLayer
      */
     private func moveImageViews(corners: [CGPoint]) {
         assert(Thread.isMainThread)
         
-        // 数据验证：确保有4个角点
+        // Data validation: Ensure 4 corners
         guard corners.count == 4 else { return }
         
-        // 步骤1：计算QR码的几何中心点
-        // 使用四个角点的平均值，比path.bounds.center更精确
+        // Step 1: Calculate geometric center of QR code
+        // Use average of 4 corners, more precise than path.bounds.center
         let centerX = corners.reduce(0) { $0 + $1.x } / 4
         let centerY = corners.reduce(0) { $0 + $1.y } / 4
         let qrCenter = CGPoint(x: centerX, y: centerY)
         
-        // 步骤2：计算QR码的平均边长
-        // 遍历四条边，计算每条边的长度，然后取平均值
-        // 这样可以处理轻微的透视变形，得到更稳定的尺寸
+        // Step 2: Calculate average side length of QR code
+        // Iterate through 4 sides, calculate length of each, then take average
+        // This handles slight perspective distortion for more stable size
         var totalLength: CGFloat = 0
         for i in 0..<4 {
             let nextIndex = (i + 1) % 4
@@ -871,40 +871,40 @@ public class QRScannerView: UIView {
         }
         let averageSideLength = totalLength / 4
         
-        // 步骤3：计算QR码的旋转角度
-        // 关键修复：使用左边（corners[0] -> corners[3]）而不是上边（corners[0] -> corners[1]）
-        // 这样避免了90度的角度偏移问题
-        // corners顺序：[0]左上 -> [1]右上 -> [2]右下 -> [3]左下
-        let deltaX = corners[3].x - corners[0].x  // 左上角到左下角的X方向分量
-        let deltaY = corners[3].y - corners[0].y  // 左上角到左下角的Y方向分量
-        let rotationAngle = atan2(deltaY, deltaX) // 计算与水平轴的夹角
+        // Step 3: Calculate rotation angle of QR code
+        // Key fix: Use left side (corners[0] -> corners[3]) instead of top side (corners[0] -> corners[1])
+        // This avoids 90-degree angle offset issue
+        // corners order: [0]TopLeft -> [1]TopRight -> [2]BottomRight -> [3]BottomLeft
+        let deltaX = corners[3].x - corners[0].x  // X component from TopLeft to BottomLeft
+        let deltaY = corners[3].y - corners[0].y  // Y component from TopLeft to BottomLeft
+        let rotationAngle = atan2(deltaY, deltaX) // Calculate angle with horizontal axis
         
-        // 步骤4：创建扫码框的目标frame
-        // 保持正方形形状，尺寸基于平均边长加上padding
+        // Step 4: Create target frame for scan frame
+        // Keep square shape, size based on average side length plus padding
         let frameSize = averageSideLength + focusImagePadding * 2
         let targetFrame = CGRect(
-            x: qrCenter.x - frameSize / 2,  // 以中心点为基准
+            x: qrCenter.x - frameSize / 2,  // Based on center point
             y: qrCenter.y - frameSize / 2,
             width: frameSize,
             height: frameSize
         )
         
-        // 步骤5：执行focusImageView的动画变换
+        // Step 5: Execute focusImageView animation transform
         UIView.animate(withDuration: animationDuration, animations: { [weak self] in
             guard let strongSelf = self else { return }
             
-            // 重置transform以避免累积变换效应
+            // Reset transform to avoid cumulative transform effects
             strongSelf.focusImageView.transform = CGAffineTransform.identity
             
-            // 设置新的frame（位置和尺寸）
+            // Set new frame (position and size)
             strongSelf.focusImageView.frame = targetFrame
             
-            // 应用旋转变换（围绕中心点旋转）
+            // Apply rotation transform (rotate around center)
             strongSelf.focusImageView.transform = CGAffineTransform(rotationAngle: rotationAngle)
             
         }, completion: { _ in })
         
-        // 步骤6：同步执行遮罩层的移动和旋转动画
+        // Step 6: Synchronously execute overlay mask move and rotate animation
         animateOverlayMaskMovement(to: targetFrame, rotation: rotationAngle, duration: animationDuration)
     }
     
@@ -926,21 +926,21 @@ public class QRScannerView: UIView {
 
 extension QRScannerView: AVCaptureMetadataOutputObjectsDelegate {
     /**
-     * 处理摄像头检测到的元数据对象（QR码等）
-     * 
-     * 这是AVCaptureMetadataOutputObjectsDelegate的核心回调方法，当摄像头检测到
-     * QR码或其他支持的元数据对象时会被调用。
-     * 
-     * 处理流程：
-     * 1. 获取第一个检测到的元数据对象
-     * 2. 转换为可读的机器码对象
-     * 3. 在主线程更新UI（移动扫描框到检测位置）
-     * 4. 如果扫描已启用，提取字符串值并回调成功结果
-     * 5. 关闭闪光灯并禁用进一步扫描
-     * 
-     * @param output 元数据输出对象
-     * @param metadataObjects 检测到的元数据对象数组
-     * @param connection 捕获连接
+     * Handle Metadata Objects Detected by Camera (QR Code, etc.)
+     *
+     * Core callback method for AVCaptureMetadataOutputObjectsDelegate, called when camera detects
+     * QR code or other supported metadata objects.
+     *
+     * Process flow:
+     * 1. Get first detected metadata object
+     * 2. Convert to readable machine code object
+     * 3. Update UI on main thread (move scan frame to detected position)
+     * 4. If scanning enabled, extract string value and callback success result
+     * 5. Turn off torch and disable further scanning
+     *
+     * @param output Metadata output object
+     * @param metadataObjects Array of detected metadata objects
+     * @param connection Capture connection
      */
     public func metadataOutput(_ output: AVCaptureMetadataOutput, didOutput metadataObjects: [AVMetadataObject], from connection: AVCaptureConnection) {
         if let metadataObject = metadataObjects.first {
@@ -968,22 +968,22 @@ extension QRScannerView: AVCaptureMetadataOutputObjectsDelegate {
 // MARK: - UIDeviceOrientation Extension
 
 /**
- * UIDeviceOrientation扩展
- * 
- * 为UIDeviceOrientation添加便利属性，用于判断设备方向是否为有效的界面方向。
- * 这个扩展帮助过滤掉不适用于界面布局的设备方向（如平放、倒置等）。
+ * UIDeviceOrientation Extension
+ *
+ * Adds convenience property to UIDeviceOrientation to determine if device orientation is a valid interface orientation.
+ * This extension helps filter out device orientations not suitable for interface layout (e.g., face up, face down).
  */
 extension UIDeviceOrientation {
     /**
-     * 判断当前设备方向是否为有效的界面方向
-     * 
-     * 有效的界面方向包括：
-     * - portrait: 竖屏正向
-     * - portraitUpsideDown: 竖屏倒置
-     * - landscapeLeft: 横屏左转
-     * - landscapeRight: 横屏右转
-     * 
-     * @return 如果是有效的界面方向返回true，否则返回false
+     * Determine if current device orientation is a valid interface orientation
+     *
+     * Valid interface orientations include:
+     * - portrait: Portrait
+     * - portraitUpsideDown: Portrait Upside Down
+     * - landscapeLeft: Landscape Left
+     * - landscapeRight: Landscape Right
+     *
+     * @return Returns true if valid interface orientation, otherwise false
      */
     var isValidInterfaceOrientation: Bool {
         switch self {
