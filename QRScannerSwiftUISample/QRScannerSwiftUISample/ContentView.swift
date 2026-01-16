@@ -5,20 +5,20 @@ import SwiftUI
 struct ContentView: View {
     @State private var isScanning = true
     @State private var isTorchOn = false
-    @State private var shouldRescan = false
     @State private var showOverlay = false
     @State private var videoZoomFactor: Double = 3.0
     @State private var scale: Double = 1
     @GestureState private var gestureScale: CGFloat = 1.0
+    @State private var result = ""
     var body: some View {
         ZStack {
             QRScannerSwiftUIView(
                 isScanning: $isScanning,
                 torchActive: $isTorchOn,
-                shouldRescan: $shouldRescan,
                 showOverlay: showOverlay,
                 videoZoomFactor: scale * gestureScale,
                 onSuccess: { qrCode in
+                    result = qrCode
                     print("QR Code scanned: \(qrCode)")
                 },
                 onFailure: { error in
@@ -38,22 +38,20 @@ struct ContentView: View {
 
             VStack {
                 Spacer()
+
+                if !result.isEmpty {
+                    HStack {
+                        Spacer()
+                        Text(result)
+                            .buttonStyle(.borderless)
+                            .padding(.horizontal, 50)
+                            
+                        Spacer()
+                    }
+                }
+
                 HStack {
-                    Button {
-                        self.shouldRescan = true
-                    } label: {
-                        Text("Rescan")
-                    }
-                    .buttonStyle(.borderless)
-                    .padding(.leading, 50)
-                    Spacer()
-                    Button {
-                        self.showOverlay = true
-                    } label: {
-                        Text("Overly")
-                    }
-                    .buttonStyle(.borderless)
-                    .padding(.leading, 50)
+
                     Spacer()
                     Button(action: {
                         isTorchOn.toggle()
@@ -65,12 +63,12 @@ struct ContentView: View {
                             .background(Color.black.opacity(0.6))
                             .clipShape(Circle())
                     }
-                    .padding(.trailing, 20)
-                    .padding(.bottom, 50)
+                    .buttonStyle(.borderless)
+                    .padding(.trailing, 50)
                 }
             }
         }
-    
+
         .simultaneousGesture(
             MagnificationGesture()
                 .updating($gestureScale) { value, state, _ in
@@ -78,20 +76,20 @@ struct ContentView: View {
                 }
                 .onEnded { value in
                     let newScale = scale * value
-                    withAnimation { 
+                    withAnimation {
                         scale = min(max(newScale, 1.0), 10.0)
                     }
                 }
         )
         .simultaneousGesture(
             TapGesture(count: 2)
-                .onEnded{_ in
-                    withAnimation { 
-                        if scale >= 1.0 && scale < 2.0{
+                .onEnded { _ in
+                    withAnimation {
+                        if scale >= 1.0, scale < 2.0 {
                             self.scale = 2.0
-                        }else if scale >= 2.0 && scale < 6.0 {
+                        } else if scale >= 2.0, scale < 6.0 {
                             self.scale = 6.0
-                        }else {
+                        } else {
                             scale = 1.0
                         }
                     }

@@ -32,8 +32,6 @@ public class QRScannerView: UIView {
     public struct Input {
         var focusImage: UIImage?
         var focusImagePadding: CGFloat?
-        var animationDuration: Double?
-        var scanningAreaLimit: Bool
         var videoZoomFactor: CGFloat?
         var metadataObjectTypes: [AVMetadataObject.ObjectType]
 
@@ -42,15 +40,11 @@ public class QRScannerView: UIView {
         public init(
             focusImage: UIImage? = nil,
             focusImagePadding: CGFloat? = nil,
-            animationDuration: Double? = nil,
-            scanningAreaLimit: Bool = false,
             videoZoomFactor: CGFloat? = nil,
             metadataObjectTypes: [AVMetadataObject.ObjectType] = [.qr, .aztec]
         ) {
             self.focusImage = focusImage
             self.focusImagePadding = focusImagePadding
-            self.animationDuration = animationDuration
-            self.scanningAreaLimit = scanningAreaLimit
             self.videoZoomFactor = videoZoomFactor
             self.metadataObjectTypes = metadataObjectTypes
         }
@@ -65,16 +59,10 @@ public class QRScannerView: UIView {
     public var focusImagePadding: CGFloat = 8.0
 
     @IBInspectable
-    public var animationDuration: Double = 0.5
-
-    @IBInspectable
     public var overlayCornerRadius: CGFloat = 20.0
 
     @IBInspectable
     public var overlayAnimationDuration: Double = 0.6
-
-    @IBInspectable
-    public var scanningAreaLimit: Bool = false
 
     @IBInspectable
     public var videoZoomFactor: CGFloat = 1.0
@@ -99,11 +87,7 @@ public class QRScannerView: UIView {
         if let focusImagePadding = input.focusImagePadding {
             self.focusImagePadding = focusImagePadding
         }
-        if let animationDuration = input.animationDuration {
-            self.animationDuration = animationDuration
-        }
 
-        scanningAreaLimit = input.scanningAreaLimit
         if let videoZoomFactor = input.videoZoomFactor {
             self.videoZoomFactor = videoZoomFactor
         }
@@ -123,7 +107,6 @@ public class QRScannerView: UIView {
     public func startRunning() {
         guard isAuthorized() else { return } // Check camera authorization
         guard !session.isRunning else { return } // Avoid duplicate start
-        metadataOutputEnable = true // Enable metadata output
         metadataQueue.async { [weak self] in
             self?.session.startRunning() // Start session on background queue
         }
@@ -136,57 +119,6 @@ public class QRScannerView: UIView {
         guard session.isRunning else { return } // Check if session is running
         metadataQueue.async { [weak self] in
             self?.session.stopRunning() // Stop session on background queue
-        }
-        metadataOutputEnable = false // Disable metadata output
-    }
-
-    /// Rescan
-    ///
-    /// Resets the scanner state and restarts scanning. This method cleans up the current UI state,
-    /// recreates the scan frame and overlay mask with animation effects.
-    ///
-    /// Usage scenarios:
-    /// - Continue scanning after completion
-    /// - Restart after scan error
-    /// - User manually triggers rescan
-    public func rescan() {
-        // Check camera authorization
-        guard isAuthorized() else { return }
-
-        // Reset tracking state
-        lastFrame = nil
-
-        // Step 1: Stop current scanning
-        metadataOutputEnable = false
-
-        // Step 2: Cleanup UI state
-        focusImageView.removeFromSuperview() // Remove scan frame
-
-        // Step 3: Cleanup overlay mask
-        overlayLayer?.removeFromSuperlayer()
-        overlayLayer = nil
-
-        // Step 4: Reset scan frame transform state
-        focusImageView.transform = CGAffineTransform.identity
-
-        // Step 5: Recreate scan frame
-        focusImageView = UIImageView(frame: calculation())
-        let image = focusImage ?? UIImage(
-            named: "scan_qr_focus",
-            in: .module,
-            compatibleWith: nil
-        )
-        focusImageView.image = image?.withRenderingMode(.alwaysTemplate)
-        focusImageView.tintColor = .white
-        addSubview(focusImageView)
-
-        // Step 6: Reset overlay mask (with animation)
-        setupOverlayMask(animated: true)
-
-        // Step 7: Delay restart scanning (avoid timing issues)
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
-            self?.metadataOutputEnable = true
-            self?.startRunning()
         }
     }
 
@@ -321,9 +253,6 @@ public class QRScannerView: UIView {
         // If bounds changed, update mask
         if boundsChanged {
             updateOverlayMask()
-            if scanningAreaLimit {
-                updateScanningArea()
-            }
         }
     }
 
@@ -362,7 +291,6 @@ public class QRScannerView: UIView {
 
     private var previewLayer: AVCaptureVideoPreviewLayer?
     private var metadataOutput = AVCaptureMetadataOutput()
-    private var metadataOutputEnable = false
     private var metadataOutputDisable = false
 
     // MARK: Queues
@@ -388,6 +316,7 @@ public class QRScannerView: UIView {
 
     private var lastFrame: CGRect?
     private var displayLink: CADisplayLink?
+    private var lastScannedCode: String?
 
     private enum AuthorizationStatus {
         case authorized, notDetermined, restrictedOrDenied
@@ -500,7 +429,6 @@ public class QRScannerView: UIView {
 
         // start running
         if authorizationStatus() == .notDetermined {
-            metadataOutputEnable = true
             metadataQueue.async { [weak self] in
                 self?.session.startRunning()
             }
@@ -886,10 +814,6 @@ public class QRScannerView: UIView {
             guard let self = self else { return }
             // Reset overlay mask after animation completes to ensure correct adaptation
             self.setupOverlayMask(animated: false)
-
-            if self.scanningAreaLimit {
-                self.updateScanningArea()
-            }
         }
     }
 
@@ -954,26 +878,6 @@ public class QRScannerView: UIView {
         }
 
         connection.videoOrientation = videoOrientation
-    }
-
-    /// Set scanning area limit
-    private func updateScanningArea() {
-        guard let previewLayer = previewLayer else { return }
-
-        // Calculate relative position of scan frame in preview layer
-        let scanRect = calculation()
-        let previewBounds = previewLayer.bounds
-
-        // Convert to relative coordinates (0-1)
-        let rectOfInterest = CGRect(
-            x: scanRect.minY / previewBounds.height,
-            y: scanRect.minX / previewBounds.width,
-            width: scanRect.height / previewBounds.height,
-            height: scanRect.width / previewBounds.width
-        )
-
-        // Set scanning area limit
-        metadataOutput.rectOfInterest = rectOfInterest
     }
 
     // MARK: - DisplayLink for Synchronization
@@ -1209,20 +1113,19 @@ extension QRScannerView: AVCaptureMetadataOutputObjectsDelegate {
             ) as? AVMetadataMachineReadableCodeObject
         else { return }
 
-        DispatchQueue.main.async{
+        DispatchQueue.main.async {
             // 4. Update scan frame UI
             self.moveImageViews(corners: readableObject.corners)
         }
 
-        guard metadataOutputEnable else { return }
-        metadataOutputEnable = false
-
         DispatchQueue.main.async { [weak self] in
             guard let strongSelf = self,
                   let stringValue = readableObject.stringValue else { return }
-            // 5. Handle scanning success logic
-            // strongSelf.setTorchActive(isOn: false)
-            strongSelf.success(stringValue)
+            
+            if strongSelf.lastScannedCode != stringValue {
+                strongSelf.lastScannedCode = stringValue
+                strongSelf.success(stringValue)
+            }
         }
     }
 }

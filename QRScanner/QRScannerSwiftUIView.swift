@@ -15,7 +15,6 @@ public struct QRScannerSwiftUIView: UIViewRepresentable {
     private let onTorchActiveChange: ((Bool) -> Void)?
     @Binding private var isScanning: Bool
     @Binding private var torchActive: Bool
-    @Binding private var shouldRescan: Bool
 
     // MARK: - Initializers
 
@@ -23,7 +22,6 @@ public struct QRScannerSwiftUIView: UIViewRepresentable {
         configuration: Configuration = Configuration(),
         isScanning: Binding<Bool> = .constant(true),
         torchActive: Binding<Bool> = .constant(false),
-        shouldRescan: Binding<Bool> = .constant(false),
         showOverlay: Bool = true,
         videoZoomFactor: CGFloat = 1.0,
         onSuccess: @escaping (String) -> Void,
@@ -35,7 +33,6 @@ public struct QRScannerSwiftUIView: UIViewRepresentable {
         self.videoZoomFactor = videoZoomFactor
         _isScanning = isScanning
         _torchActive = torchActive
-        _shouldRescan = shouldRescan
         self.onSuccess = onSuccess
         self.onFailure = onFailure
         self.onTorchActiveChange = onTorchActiveChange
@@ -63,18 +60,10 @@ public struct QRScannerSwiftUIView: UIViewRepresentable {
     }
 
     public func updateUIView(_ uiView: QRScannerView, context: Context) {
-        if shouldRescan {
-            uiView.rescan()
-            DispatchQueue.main.async {
-                self.isScanning = true
-                self.shouldRescan = false
-            }
+        if isScanning {
+            uiView.startRunning()
         } else {
-            if isScanning {
-                uiView.startRunning()
-            } else {
-                uiView.stopRunning()
-            }
+            uiView.stopRunning()
         }
         
         
