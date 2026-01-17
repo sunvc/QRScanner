@@ -2,22 +2,48 @@ import SwiftUI
 
 // MARK: - QRScannerSwiftUIView
 
+/// A SwiftUI wrapper for QRScannerView
 public struct QRScannerSwiftUIView: UIViewRepresentable {
     public typealias Configuration = QRScannerView.Input
 
     // MARK: - Properties
 
+    /// Configuration for the scanner view
     private let configuration: Configuration
+    
+    /// Initial video zoom factor
     private let videoZoomFactor: CGFloat
+    
+    /// Callback when scanning succeeds
     private let onSuccess: (String) -> Void
+    
+    /// Callback when scanning fails
     private let onFailure: (QRScannerError) -> Void
+    
+    /// Callback when torch state changes
     private let onTorchActiveChange: ((Bool) -> Void)?
+    
+    /// Callback to determine which code to track from multiple detected codes
     private let pickCodeToTrack: (([String]) -> String?)?
+    
+    /// Binding to control scanning state
     @Binding private var isScanning: Bool
+    
+    /// Binding to control torch state
     @Binding private var torchActive: Bool
 
     // MARK: - Initializers
 
+    /// Initialize the QRScannerSwiftUIView
+    /// - Parameters:
+    ///   - configuration: Scanner configuration
+    ///   - isScanning: Binding to control scanning state
+    ///   - torchActive: Binding to control torch state
+    ///   - videoZoomFactor: Initial video zoom factor
+    ///   - onSuccess: Closure called on successful scan
+    ///   - onFailure: Closure called on scan failure
+    ///   - onTorchActiveChange: Closure called on torch state change
+    ///   - pickCodeToTrack: Closure to select which code to track from multiple detected codes
     public init(
         configuration: Configuration = Configuration(),
         isScanning: Binding<Bool> = .constant(true),
@@ -85,6 +111,7 @@ public struct QRScannerSwiftUIView: UIViewRepresentable {
 
     // MARK: - Coordinator
 
+    /// Coordinator to handle QRScannerViewDelegate callbacks
     public class Coordinator: NSObject, QRScannerViewDelegate {
         @Binding private var isScanning: Bool
         @Binding private var torchActive: Bool

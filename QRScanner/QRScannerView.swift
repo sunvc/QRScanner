@@ -11,17 +11,41 @@ import UIKit
 
 // MARK: - QRScannerViewDelegate
 
+/// Delegate protocol for receiving QR scanner events
 public protocol QRScannerViewDelegate: AnyObject {
-    // Required
+    // MARK: - Required Methods
+    
+    /// Called when the scanner fails with an error
+    /// - Parameters:
+    ///   - qrScannerView: The scanner view instance
+    ///   - error: The error that occurred
     func qrScannerView(_ qrScannerView: QRScannerView, didFailure error: QRScannerError)
+
+    /// Called when a QR code is successfully scanned
+    /// - Parameters:
+    ///   - qrScannerView: The scanner view instance
+    ///   - code: The scanned QR code string
     func qrScannerView(_ qrScannerView: QRScannerView, didSuccess code: String)
-    // Optional
+
+    // MARK: - Optional Methods
+    
+    /// Called when the torch state changes
+    /// - Parameters:
+    ///   - qrScannerView: The scanner view instance
+    ///   - isOn: New torch state (true: on, false: off)
     func qrScannerView(_ qrScannerView: QRScannerView, didChangeTorchActive isOn: Bool)
+
+    /// Called when multiple QR codes are detected to ask which one to track
+    /// - Parameters:
+    ///   - qrScannerView: The scanner view instance
+    ///   - codes: Array of detected QR code strings
+    /// - Returns: The code string to track, or nil to ignore
     func qrScannerView(_ qrScannerView: QRScannerView, pickCodeToTrackFrom codes: [String]) -> String?
 }
 
 extension QRScannerViewDelegate {
     public func qrScannerView(_ qrScannerView: QRScannerView, didChangeTorchActive isOn: Bool) {}
+    
     public func qrScannerView(_ qrScannerView: QRScannerView, pickCodeToTrackFrom codes: [String]) -> String? {
         return codes.first
     }
@@ -29,18 +53,34 @@ extension QRScannerViewDelegate {
 
 // MARK: - QRScannerView
 
+/// A view that handles QR code scanning with a custom UI overlay
 @IBDesignable
 public class QRScannerView: UIView {
     // MARK: - Input
 
+    /// Configuration input for the scanner
     public struct Input {
+        /// Custom image for the focus frame
         var focusImage: UIImage?
+        
+        /// Padding for the focus frame image
         var focusImagePadding: CGFloat?
+        
+        /// Initial video zoom factor
         var videoZoomFactor: CGFloat?
+        
+        /// Metadata object types to scan for (default: .qr, .aztec)
         var metadataObjectTypes: [AVMetadataObject.ObjectType]
 
+        /// Default configuration
         public static var `default`: Input { Self() }
 
+        /// Initialize with custom configuration
+        /// - Parameters:
+        ///   - focusImage: Custom image for the focus frame
+        ///   - focusImagePadding: Padding for the focus frame image
+        ///   - videoZoomFactor: Initial video zoom factor
+        ///   - metadataObjectTypes: Metadata object types to scan for
         public init(
             focusImage: UIImage? = nil,
             focusImagePadding: CGFloat? = nil,
@@ -56,18 +96,23 @@ public class QRScannerView: UIView {
 
     // MARK: - Public Properties
 
+    /// Custom image for the focus frame
     @IBInspectable
     public var focusImage: UIImage?
 
+    /// Padding for the focus frame image (percentage-like value, default 8.0)
     @IBInspectable
     public var focusImagePadding: CGFloat = 8.0
 
+    /// Corner radius for the overlay cutout
     @IBInspectable
     public var overlayCornerRadius: CGFloat = 30.0
 
+    /// Duration for overlay animations
     @IBInspectable
     public var overlayAnimationDuration: Double = 0.6
 
+    /// Current video zoom factor
     @IBInspectable
     public var videoZoomFactor: CGFloat = 1.0
 
