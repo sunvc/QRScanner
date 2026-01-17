@@ -17,10 +17,14 @@ public protocol QRScannerViewDelegate: AnyObject {
     func qrScannerView(_ qrScannerView: QRScannerView, didSuccess code: String)
     // Optional
     func qrScannerView(_ qrScannerView: QRScannerView, didChangeTorchActive isOn: Bool)
+    func qrScannerView(_ qrScannerView: QRScannerView, pickCodeToTrackFrom codes: [String]) -> String?
 }
 
 extension QRScannerViewDelegate {
     public func qrScannerView(_ qrScannerView: QRScannerView, didChangeTorchActive isOn: Bool) {}
+    public func qrScannerView(_ qrScannerView: QRScannerView, pickCodeToTrackFrom codes: [String]) -> String? {
+        return codes.first
+    }
 }
 
 // MARK: - QRScannerView
@@ -1105,32 +1109,41 @@ extension QRScannerView: AVCaptureMetadataOutputObjectsDelegate {
             return
         }
 
-        // 2. Get the first metadata object
-        guard let metadataObject = metadataObjects.first else { return }
-
-        // 3. Perform UI updates and coordinate transformation on Main Thread
-
-        // 3. Transform metadata object coordinates to view coordinates
-        // It is CRITICAL to do this on the main thread because it relies on previewLayer's
-        // current layout/bounds
-        guard let readableObject = previewLayer?
-            .transformedMetadataObject(
-                for: metadataObject
-            ) as? AVMetadataMachineReadableCodeObject
-        else { return }
-
-        DispatchQueue.main.async {[weak self] in
-            // 4. Update scan frame UI
-            self?.moveImageViews(corners: readableObject.corners)
-        }
-
         DispatchQueue.main.async { [weak self] in
-            guard let strongSelf = self,
-                  let stringValue = readableObject.stringValue else { return }
-            
-            if strongSelf.lastScannedCode != stringValue {
-                strongSelf.lastScannedCode = stringValue
-                strongSelf.success(stringValue)
+            guard let strongSelf = self, let previewLayer = strongSelf.previewLayer else { return }
+
+            var readableObjects: [AVMetadataMachineReadableCodeObject] = []
+            var codes: [String] = []
+
+            // 2. Transform all metadata objects to view coordinates and extract strings
+            for object in metadataObjects {
+                if let readableObject = previewLayer.transformedMetadataObject(for: object) as? AVMetadataMachineReadableCodeObject,
+                   let stringValue = readableObject.stringValue {
+                    readableObjects.append(readableObject)
+                    codes.append(stringValue)
+                }
+            }
+
+            guard !codes.isEmpty else {
+                strongSelf.resetTracking()
+                return
+            }
+
+            // 3. Ask delegate which code to track
+            let targetCode = strongSelf.delegate?.qrScannerView(strongSelf, pickCodeToTrackFrom: codes)
+
+            // 4. Find the object matching the target code
+            if let targetCode = targetCode,
+               let targetObject = readableObjects.first(where: { $0.stringValue == targetCode }) {
+                
+                strongSelf.moveImageViews(corners: targetObject.corners)
+
+                if strongSelf.lastScannedCode != targetCode {
+                    strongSelf.lastScannedCode = targetCode
+                    strongSelf.success(targetCode)
+                }
+            } else {
+                strongSelf.resetTracking()
             }
         }
     }

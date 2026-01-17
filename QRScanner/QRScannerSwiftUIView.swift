@@ -12,6 +12,7 @@ public struct QRScannerSwiftUIView: UIViewRepresentable {
     private let onSuccess: (String) -> Void
     private let onFailure: (QRScannerError) -> Void
     private let onTorchActiveChange: ((Bool) -> Void)?
+    private let pickCodeToTrack: (([String]) -> String?)?
     @Binding private var isScanning: Bool
     @Binding private var torchActive: Bool
 
@@ -24,7 +25,8 @@ public struct QRScannerSwiftUIView: UIViewRepresentable {
         videoZoomFactor: CGFloat = 1.0,
         onSuccess: @escaping (String) -> Void,
         onFailure: @escaping (QRScannerError) -> Void,
-        onTorchActiveChange: ((Bool) -> Void)? = nil
+        onTorchActiveChange: ((Bool) -> Void)? = nil,
+        pickCodeToTrack: (([String]) -> String?)? = nil
     ) {
         self.configuration = configuration
         self.videoZoomFactor = videoZoomFactor
@@ -33,6 +35,7 @@ public struct QRScannerSwiftUIView: UIViewRepresentable {
         self.onSuccess = onSuccess
         self.onFailure = onFailure
         self.onTorchActiveChange = onTorchActiveChange
+        self.pickCodeToTrack = pickCodeToTrack
     }
 
     // MARK: - UIViewRepresentable
@@ -75,7 +78,8 @@ public struct QRScannerSwiftUIView: UIViewRepresentable {
             torchActive: $torchActive,
             onSuccess: onSuccess,
             onFailure: onFailure,
-            onTorchActiveChange: onTorchActiveChange
+            onTorchActiveChange: onTorchActiveChange,
+            pickCodeToTrack: pickCodeToTrack
         )
     }
 
@@ -88,6 +92,7 @@ public struct QRScannerSwiftUIView: UIViewRepresentable {
         private let onSuccess: (String) -> Void
         private let onFailure: (QRScannerError) -> Void
         private let onTorchActiveChange: ((Bool) -> Void)?
+        private let pickCodeToTrack: (([String]) -> String?)?
 
         weak var qrScannerView: QRScannerView?
 
@@ -96,13 +101,15 @@ public struct QRScannerSwiftUIView: UIViewRepresentable {
             torchActive: Binding<Bool>,
             onSuccess: @escaping (String) -> Void,
             onFailure: @escaping (QRScannerError) -> Void,
-            onTorchActiveChange: ((Bool) -> Void)?
+            onTorchActiveChange: ((Bool) -> Void)?,
+            pickCodeToTrack: (([String]) -> String?)?
         ) {
             _isScanning = isScanning
             _torchActive = torchActive
             self.onSuccess = onSuccess
             self.onFailure = onFailure
             self.onTorchActiveChange = onTorchActiveChange
+            self.pickCodeToTrack = pickCodeToTrack
         }
 
         public func qrScannerView(_ qrScannerView: QRScannerView, didSuccess code: String) {
@@ -121,6 +128,10 @@ public struct QRScannerSwiftUIView: UIViewRepresentable {
                 self.torchActive = isOn
             }
             onTorchActiveChange?(isOn)
+        }
+
+        public func qrScannerView(_ qrScannerView: QRScannerView, pickCodeToTrackFrom codes: [String]) -> String? {
+            return pickCodeToTrack?(codes) ?? codes.first
         }
     }
 }

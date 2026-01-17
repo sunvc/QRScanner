@@ -13,6 +13,7 @@ protocol QRScannerSpyDelegateResult: AnyObject {
     var didFailure: (QRScannerError) -> Void { get set }
     var didSuccess: (String) -> Void { get set }
     var didChangeTorchActive: (Bool) -> Void { get set }
+    var pickCodeToTrack: ([String]) -> String? { get set }
 }
 
 protocol QRScannerSpyDelegateResultType: AnyObject {
@@ -28,6 +29,7 @@ class QRScannerSpyDelegate: QRScannerViewDelegate, QRScannerSpyDelegateResultTyp
     var didFailure: (QRScannerError) -> Void = { _ in }
     var didSuccess: (String) -> Void = { _ in }
     var didChangeTorchActive: (Bool) -> Void = { _ in }
+    var pickCodeToTrack: ([String]) -> String? = { $0.first }
 
     func qrScannerView(_ qrScannerView: QRScannerView, didFailure error: QRScannerError) {
         result.didFailure(error)
@@ -39,5 +41,9 @@ class QRScannerSpyDelegate: QRScannerViewDelegate, QRScannerSpyDelegateResultTyp
 
     func qrScannerView(_ qrScannerView: QRScannerView, didChangeTorchActive isOn: Bool) {
         result.didChangeTorchActive(isOn)
+    }
+
+    func qrScannerView(_ qrScannerView: QRScannerView, pickCodeToTrackFrom codes: [String]) -> String? {
+        return result.pickCodeToTrack(codes)
     }
 }

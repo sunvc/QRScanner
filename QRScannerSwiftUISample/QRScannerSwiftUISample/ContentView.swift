@@ -25,6 +25,14 @@ struct ContentView: View {
                 },
                 onTorchActiveChange: { isOn in
                     isTorchOn = isOn
+                },
+                pickCodeToTrack: { codes in
+                    for code in codes {
+                        if code.contains("1235") {
+                            return code
+                        }
+                    }
+                    return nil
                 }
             )
             .edgesIgnoringSafeArea(.all)
@@ -44,13 +52,12 @@ struct ContentView: View {
                         Text(result)
                             .buttonStyle(.borderless)
                             .padding(.horizontal, 50)
-                            
+
                         Spacer()
                     }
                 }
 
                 HStack {
-
                     Spacer()
                     Button(action: {
                         isTorchOn.toggle()
