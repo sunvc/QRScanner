@@ -59,7 +59,7 @@ public class QRScannerView: UIView {
     public var focusImagePadding: CGFloat = 8.0
 
     @IBInspectable
-    public var overlayCornerRadius: CGFloat = 20.0
+    public var overlayCornerRadius: CGFloat = 30.0
 
     @IBInspectable
     public var overlayAnimationDuration: Double = 0.6
@@ -988,7 +988,10 @@ public class QRScannerView: UIView {
 
         // Step 4: Create target frame for scan frame
         // Keep square shape, size based on average side length plus padding
-        let frameSize = averageSideLength + focusImagePadding * 2
+        // Use focusImagePadding as a percentage factor to scale padding dynamically
+        // Default 8.0 means 8% of the side length
+        let dynamicPadding = averageSideLength * (focusImagePadding / 100.0)
+        let frameSize = averageSideLength + dynamicPadding * 2
         let targetFrame = CGRect(
             x: qrCenter.x - frameSize / 2, // Based on center point
             y: qrCenter.y - frameSize / 2,
@@ -1116,9 +1119,9 @@ extension QRScannerView: AVCaptureMetadataOutputObjectsDelegate {
             ) as? AVMetadataMachineReadableCodeObject
         else { return }
 
-        DispatchQueue.main.async {
+        DispatchQueue.main.async {[weak self] in
             // 4. Update scan frame UI
-            self.moveImageViews(corners: readableObject.corners)
+            self?.moveImageViews(corners: readableObject.corners)
         }
 
         DispatchQueue.main.async { [weak self] in

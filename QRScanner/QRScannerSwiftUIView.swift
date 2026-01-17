@@ -8,7 +8,6 @@ public struct QRScannerSwiftUIView: UIViewRepresentable {
     // MARK: - Properties
 
     private let configuration: Configuration
-    private let showOverlay: Bool
     private let videoZoomFactor: CGFloat
     private let onSuccess: (String) -> Void
     private let onFailure: (QRScannerError) -> Void
@@ -22,14 +21,12 @@ public struct QRScannerSwiftUIView: UIViewRepresentable {
         configuration: Configuration = Configuration(),
         isScanning: Binding<Bool> = .constant(true),
         torchActive: Binding<Bool> = .constant(false),
-        showOverlay: Bool = true,
         videoZoomFactor: CGFloat = 1.0,
         onSuccess: @escaping (String) -> Void,
         onFailure: @escaping (QRScannerError) -> Void,
         onTorchActiveChange: ((Bool) -> Void)? = nil
     ) {
         self.configuration = configuration
-        self.showOverlay = showOverlay
         self.videoZoomFactor = videoZoomFactor
         _isScanning = isScanning
         _torchActive = torchActive

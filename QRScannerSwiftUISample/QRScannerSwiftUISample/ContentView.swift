@@ -15,7 +15,6 @@ struct ContentView: View {
             QRScannerSwiftUIView(
                 isScanning: $isScanning,
                 torchActive: $isTorchOn,
-                showOverlay: showOverlay,
                 videoZoomFactor: scale * gestureScale,
                 onSuccess: { qrCode in
                     result = qrCode
