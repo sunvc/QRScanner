@@ -14,7 +14,7 @@ import UIKit
 /// Delegate protocol for receiving QR scanner events
 public protocol QRScannerViewDelegate: AnyObject {
     // MARK: - Required Methods
-    
+
     /// Called when the scanner fails with an error
     /// - Parameters:
     ///   - qrScannerView: The scanner view instance
@@ -28,7 +28,7 @@ public protocol QRScannerViewDelegate: AnyObject {
     func qrScannerView(_ qrScannerView: QRScannerView, didSuccess code: String)
 
     // MARK: - Optional Methods
-    
+
     /// Called when the torch state changes
     /// - Parameters:
     ///   - qrScannerView: The scanner view instance
@@ -40,13 +40,17 @@ public protocol QRScannerViewDelegate: AnyObject {
     ///   - qrScannerView: The scanner view instance
     ///   - codes: Array of detected QR code strings
     /// - Returns: The code string to track, or nil to ignore
-    func qrScannerView(_ qrScannerView: QRScannerView, pickCodeToTrackFrom codes: [String]) -> String?
+    func qrScannerView(_ qrScannerView: QRScannerView, pickCodeToTrackFrom codes: [String])
+        -> String?
 }
 
 extension QRScannerViewDelegate {
     public func qrScannerView(_ qrScannerView: QRScannerView, didChangeTorchActive isOn: Bool) {}
-    
-    public func qrScannerView(_ qrScannerView: QRScannerView, pickCodeToTrackFrom codes: [String]) -> String? {
+
+    public func qrScannerView(
+        _ qrScannerView: QRScannerView,
+        pickCodeToTrackFrom codes: [String]
+    ) -> String? {
         return codes.first
     }
 }
@@ -62,13 +66,13 @@ public class QRScannerView: UIView {
     public struct Input {
         /// Custom image for the focus frame
         var focusImage: UIImage?
-        
+
         /// Padding for the focus frame image
         var focusImagePadding: CGFloat?
-        
+
         /// Initial video zoom factor
         var videoZoomFactor: CGFloat?
-        
+
         /// Metadata object types to scan for (default: .qr, .aztec)
         var metadataObjectTypes: [AVMetadataObject.ObjectType]
 
@@ -114,7 +118,7 @@ public class QRScannerView: UIView {
 
     /// Current video zoom factor
     @IBInspectable
-    public var videoZoomFactor: CGFloat = 1.0
+    public var videoZoomFactor: CGFloat = 2.0
 
     // MARK: - Public
 
@@ -249,26 +253,40 @@ public class QRScannerView: UIView {
     /// @param factor The zoom factor to apply.
     /// @param animated Whether to animate the change. Default is true.
     public func setVideoZoomFactor(_ factor: CGFloat, animated: Bool = true) {
-        guard let videoInput = session.inputs.first as? AVCaptureDeviceInput else { return }
-        let videoDevice = videoInput.device
+        guard let input = session.inputs.first as? AVCaptureDeviceInput
+        else { return }
+
+        let device = input.device
 
         do {
-            try videoDevice.lockForConfiguration()
-            defer { videoDevice.unlockForConfiguration() }
+            try device.lockForConfiguration()
+            defer { device.unlockForConfiguration() }
 
-            let zoomFactor = max(
-                videoDevice.minAvailableVideoZoomFactor,
-                min(factor, videoDevice.maxAvailableVideoZoomFactor)
+            let zoom = max(
+                device.minAvailableVideoZoomFactor,
+                min(factor, device.maxAvailableVideoZoomFactor)
             )
 
+            device.cancelVideoZoomRamp()
+
             if animated {
-                videoDevice.ramp(toVideoZoomFactor: zoomFactor, withRate: 10.0)
+                let delta = abs(device.videoZoomFactor - zoom)
+                let rate = max(2.0, min(delta * 6.0, 20.0))
+                device.ramp(toVideoZoomFactor: zoom, withRate: Float(rate))
             } else {
-                videoDevice.cancelVideoZoomRamp()
-                videoDevice.videoZoomFactor = zoomFactor
+                device.videoZoomFactor = zoom
             }
+
+            // ⚠️ 可选：监测是否进入数字变焦
+            let threshold = device.activeFormat.videoZoomFactorUpscaleThreshold
+            if zoom > threshold {
+                // 已进入数字变焦
+                // 可用于 UI 提示 / 限制
+                debugPrint("已进入数字变焦", zoom, threshold)
+            }
+
         } catch {
-            print("Failed to set video zoom factor: \(error)")
+            print("Failed to set video zoom factor:", error)
         }
     }
 
@@ -366,7 +384,7 @@ public class QRScannerView: UIView {
     private var lastFrame: CGRect?
     private var displayLink: CADisplayLink?
     private var lastScannedCode: String?
-    
+
     // Inset for mask cutout to ensure scan box border sits "on top" of the mask edge
     private let maskCutoutInset: CGFloat = 3.0
 
@@ -492,38 +510,32 @@ public class QRScannerView: UIView {
     private func configureFrameRate(for device: AVCaptureDevice) {
         do {
             try device.lockForConfiguration()
+            defer { device.unlockForConfiguration() }
 
-            // Filter formats that support high resolution (>= 1080p)
-            // This ensures we don't pick a low-res high-fps format (like 720p 240fps) which might
-            // degrade scanning distance
-            let highResFormats = device.formats.filter { format in
-                let dimensions = CMVideoFormatDescriptionGetDimensions(format.formatDescription)
-                return dimensions.width >= 1920 && dimensions.height >= 1080
-            }
+            let preferredFPS = 60.0
 
-            // If no 1080p formats found, fallback to all formats
-            let candidates = highResFormats.isEmpty ? device.formats : highResFormats
+            let formats = device.formats.filter { format in
+                let desc = format.formatDescription
+                let dimensions = CMVideoFormatDescriptionGetDimensions(desc)
 
-            // Find format with highest max FPS among candidates
-            if let bestFormat = candidates.max(by: { f1, f2 in
-                let maxFps1 = f1.videoSupportedFrameRateRanges.map { $0.maxFrameRate }.max() ?? 0
-                let maxFps2 = f2.videoSupportedFrameRateRanges.map { $0.maxFrameRate }.max() ?? 0
-                return maxFps1 < maxFps2
-            }) {
-                device.activeFormat = bestFormat
-
-                // Set frame rate to max supported by the selected format
-                if let bestRange = bestFormat.videoSupportedFrameRateRanges
-                    .max(by: { $0.maxFrameRate < $1.maxFrameRate })
-                {
-                    device.activeVideoMinFrameDuration = bestRange.minFrameDuration
-                    device.activeVideoMaxFrameDuration = bestRange.minFrameDuration
+                let supportsResolution = dimensions.width >= 1920 && dimensions.height >= 1080
+                let supportsFPS = format.videoSupportedFrameRateRanges.contains {
+                    $0.maxFrameRate >= preferredFPS
                 }
+
+                return supportsResolution && supportsFPS
             }
 
-            device.unlockForConfiguration()
+            guard let bestFormat = formats.first else { return }
+
+            device.activeFormat = bestFormat
+
+            let duration = CMTime(value: 1, timescale: CMTimeScale(preferredFPS))
+            device.activeVideoMinFrameDuration = duration
+            device.activeVideoMaxFrameDuration = duration
+
         } catch {
-            print("Failed to configure frame rate: \(error)")
+            print("Failed to configure frame rate:", error)
         }
     }
 
@@ -595,7 +607,10 @@ public class QRScannerView: UIView {
             // Create initial small transparent area path
             let path = UIBezierPath(rect: bounds) // Solid path covering entire view
             let focusPath = UIBezierPath(
-                roundedRect: scaledFrame.insetBy(dx: maskCutoutInset * initialScale, dy: maskCutoutInset * initialScale),
+                roundedRect: scaledFrame.insetBy(
+                    dx: maskCutoutInset * initialScale,
+                    dy: maskCutoutInset * initialScale
+                ),
                 cornerRadius: overlayCornerRadius * initialScale
             )
             path.append(focusPath.reversing()) // Create cutout for transparent area
@@ -967,7 +982,10 @@ public class QRScannerView: UIView {
         let scale = defaultRect.width > 0 ? bounds.width / defaultRect.width : 1.0
         let dynamicRadius = overlayCornerRadius * scale
         let scaledInset = maskCutoutInset * scale
-        let focusPath = UIBezierPath(roundedRect: bounds.insetBy(dx: scaledInset, dy: scaledInset), cornerRadius: dynamicRadius)
+        let focusPath = UIBezierPath(
+            roundedRect: bounds.insetBy(dx: scaledInset, dy: scaledInset),
+            cornerRadius: dynamicRadius
+        )
 
         // Calculate transform to match focusImageView's visual state
         // 1. Center alignment offset (from bounds origin to anchor point)
@@ -1088,11 +1106,11 @@ public class QRScannerView: UIView {
 
         // Check if already at default (with some tolerance)
         // Check frame overlap, center point distance, size difference, and transform
-        if focusImageView.frame.intersects(defaultFrame) &&
-            abs(focusImageView.frame.midX - defaultFrame.midX) < 1 &&
-            abs(focusImageView.frame.midY - defaultFrame.midY) < 1 &&
-            abs(focusImageView.frame.width - defaultFrame.width) < 1 &&
-            focusImageView.transform == .identity
+        if focusImageView.frame.intersects(defaultFrame),
+           abs(focusImageView.frame.midX - defaultFrame.midX) < 1,
+           abs(focusImageView.frame.midY - defaultFrame.midY) < 1,
+           abs(focusImageView.frame.width - defaultFrame.width) < 1,
+           focusImageView.transform == .identity
         {
             return
         }
@@ -1166,8 +1184,10 @@ extension QRScannerView: AVCaptureMetadataOutputObjectsDelegate {
 
             // 2. Transform all metadata objects to view coordinates and extract strings
             for object in metadataObjects {
-                if let readableObject = previewLayer.transformedMetadataObject(for: object) as? AVMetadataMachineReadableCodeObject,
-                   let stringValue = readableObject.stringValue {
+                if let readableObject = previewLayer
+                    .transformedMetadataObject(for: object) as? AVMetadataMachineReadableCodeObject,
+                    let stringValue = readableObject.stringValue
+                {
                     readableObjects.append(readableObject)
                     codes.append(stringValue)
                 }
@@ -1179,12 +1199,15 @@ extension QRScannerView: AVCaptureMetadataOutputObjectsDelegate {
             }
 
             // 3. Ask delegate which code to track
-            let targetCode = strongSelf.delegate?.qrScannerView(strongSelf, pickCodeToTrackFrom: codes)
+            let targetCode = strongSelf.delegate?.qrScannerView(
+                strongSelf,
+                pickCodeToTrackFrom: codes
+            )
 
             // 4. Find the object matching the target code
             if let targetCode = targetCode,
-               let targetObject = readableObjects.first(where: { $0.stringValue == targetCode }) {
-                
+               let targetObject = readableObjects.first(where: { $0.stringValue == targetCode })
+            {
                 strongSelf.moveImageViews(corners: targetObject.corners)
 
                 if strongSelf.lastScannedCode != targetCode {

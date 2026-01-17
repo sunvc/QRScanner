@@ -6,7 +6,7 @@ struct ContentView: View {
     @State private var isScanning = true
     @State private var isTorchOn = false
     @State private var showOverlay = false
-    @State private var videoZoomFactor: Double = 3.0
+    @State private var videoZoomFactor: Double = 0.5
     @State private var scale: Double = 1
     @GestureState private var gestureScale: CGFloat = 1.0
     @State private var result = ""
