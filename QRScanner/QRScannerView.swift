@@ -321,6 +321,9 @@ public class QRScannerView: UIView {
     private var lastFrame: CGRect?
     private var displayLink: CADisplayLink?
     private var lastScannedCode: String?
+    
+    // Inset for mask cutout to ensure scan box border sits "on top" of the mask edge
+    private let maskCutoutInset: CGFloat = 3.0
 
     private enum AuthorizationStatus {
         case authorized, notDetermined, restrictedOrDenied
@@ -547,7 +550,7 @@ public class QRScannerView: UIView {
             // Create initial small transparent area path
             let path = UIBezierPath(rect: bounds) // Solid path covering entire view
             let focusPath = UIBezierPath(
-                roundedRect: scaledFrame,
+                roundedRect: scaledFrame.insetBy(dx: maskCutoutInset * initialScale, dy: maskCutoutInset * initialScale),
                 cornerRadius: overlayCornerRadius * initialScale
             )
             path.append(focusPath.reversing()) // Create cutout for transparent area
@@ -559,7 +562,7 @@ public class QRScannerView: UIView {
             // Static mode: Create final state directly
             let path = UIBezierPath(rect: bounds)
             let focusPath = UIBezierPath(
-                roundedRect: focusImageView.frame,
+                roundedRect: focusImageView.frame.insetBy(dx: maskCutoutInset, dy: maskCutoutInset),
                 cornerRadius: overlayCornerRadius
             )
             path.append(focusPath.reversing())
@@ -600,7 +603,7 @@ public class QRScannerView: UIView {
 
         // Create transparent hole for current focus area with rounded corners
         let focusPath = UIBezierPath(
-            roundedRect: focusImageView.frame,
+            roundedRect: focusImageView.frame.insetBy(dx: maskCutoutInset, dy: maskCutoutInset),
             cornerRadius: overlayCornerRadius
         )
 
@@ -653,7 +656,7 @@ public class QRScannerView: UIView {
         // Create final path (appropriate size)
         let finalPath = UIBezierPath(rect: bounds)
         let finalFocusPath = UIBezierPath(
-            roundedRect: finalFrame,
+            roundedRect: finalFrame.insetBy(dx: maskCutoutInset, dy: maskCutoutInset),
             cornerRadius: overlayCornerRadius
         )
         finalPath.append(finalFocusPath.reversing())
@@ -918,7 +921,8 @@ public class QRScannerView: UIView {
         let defaultRect = calculation()
         let scale = defaultRect.width > 0 ? bounds.width / defaultRect.width : 1.0
         let dynamicRadius = overlayCornerRadius * scale
-        let focusPath = UIBezierPath(roundedRect: bounds, cornerRadius: dynamicRadius)
+        let scaledInset = maskCutoutInset * scale
+        let focusPath = UIBezierPath(roundedRect: bounds.insetBy(dx: scaledInset, dy: scaledInset), cornerRadius: dynamicRadius)
 
         // Calculate transform to match focusImageView's visual state
         // 1. Center alignment offset (from bounds origin to anchor point)
