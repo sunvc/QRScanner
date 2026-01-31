@@ -475,6 +475,13 @@ public class QRScannerView: UIView {
 
         // Configure high frame rate
         configureFrameRate(for: videoDevice)
+        
+        // iPad 分屏支持：开启多任务相机访问
+        if #available(iOS 16.0, *) {
+            if session.isMultitaskingCameraAccessSupported {
+                session.isMultitaskingCameraAccessEnabled = true
+            }
+        }
 
         session.commitConfiguration()
         
