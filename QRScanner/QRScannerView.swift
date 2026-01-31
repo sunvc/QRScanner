@@ -118,7 +118,7 @@ public class QRScannerView: UIView {
 
     /// Current video zoom factor
     @IBInspectable
-    public var videoZoomFactor: CGFloat = 2.0
+    public var videoZoomFactor: CGFloat = 1.0
 
     // MARK: - Public
 
@@ -261,8 +261,8 @@ public class QRScannerView: UIView {
         do {
             try device.lockForConfiguration()
             defer { device.unlockForConfiguration() }
-
-            let zoom = max(
+            
+            let zoom = ProcessInfo.processInfo.isiOSAppOnMac ? 1.0 : max(
                 device.minAvailableVideoZoomFactor,
                 min(factor, device.maxAvailableVideoZoomFactor)
             )
@@ -276,15 +276,6 @@ public class QRScannerView: UIView {
             } else {
                 device.videoZoomFactor = zoom
             }
-
-            // ⚠️ 可选：监测是否进入数字变焦
-            let threshold = device.activeFormat.videoZoomFactorUpscaleThreshold
-            if zoom > threshold {
-                // 已进入数字变焦
-                // 可用于 UI 提示 / 限制
-                debugPrint("已进入数字变焦", zoom, threshold)
-            }
-
         } catch {
             print("Failed to set video zoom factor:", error)
         }
@@ -424,20 +415,18 @@ public class QRScannerView: UIView {
         // check device initialize
         var device: AVCaptureDevice?
 
-        if #available(iOS 13.0, *) {
-            if let tripleCamera = AVCaptureDevice.default(
-                .builtInTripleCamera,
-                for: .video,
-                position: .back
-            ) {
-                device = tripleCamera
-            } else if let dualWideCamera = AVCaptureDevice.default(
-                .builtInDualWideCamera,
-                for: .video,
-                position: .back
-            ) {
-                device = dualWideCamera
-            }
+        if let tripleCamera = AVCaptureDevice.default(
+            .builtInTripleCamera,
+            for: .video,
+            position: .back
+        ) {
+            device = tripleCamera
+        } else if let dualWideCamera = AVCaptureDevice.default(
+            .builtInDualWideCamera,
+            for: .video,
+            position: .back
+        ) {
+            device = dualWideCamera
         }
 
         if device == nil {
@@ -488,7 +477,7 @@ public class QRScannerView: UIView {
         configureFrameRate(for: videoDevice)
 
         session.commitConfiguration()
-
+        
         // torch observation
         if videoDevice.hasTorch {
             torchActiveObservation = videoDevice
@@ -504,6 +493,7 @@ public class QRScannerView: UIView {
             }
         }
     }
+    
 
     // MARK: - Frame Rate Configuration
 
@@ -800,12 +790,28 @@ public class QRScannerView: UIView {
     // MARK: Preview Layer
 
     private func addPreviewLayer() {
+        
         let previewLayer = AVCaptureVideoPreviewLayer(session: session)
         previewLayer.videoGravity = .resizeAspectFill
         previewLayer.frame = bounds
         layer.addSublayer(previewLayer)
 
         self.previewLayer = previewLayer
+        if ProcessInfo.processInfo.isiOSAppOnMac{
+            mirrorPreviewLayer(isMirrored: true)
+        }
+    }
+    
+    private func mirrorPreviewLayer(isMirrored: Bool) {
+        DispatchQueue.main.async {
+            if isMirrored {
+                // 参数说明：(x: -1, y: 1, z: 1) 表示水平翻转，垂直和深度不变
+                self.previewLayer?.transform = CATransform3DMakeScale(-1, 1, 1)
+            } else {
+                // 恢复初始状态
+                self.previewLayer?.transform = CATransform3DIdentity
+            }
+        }
     }
 
     private func removePreviewLayer() {
@@ -893,13 +899,8 @@ public class QRScannerView: UIView {
 
         // Get current app interface orientation
         let interfaceOrientation: UIInterfaceOrientation
-        if #available(iOS 13.0, *) {
-            interfaceOrientation = UIApplication.shared.windows.first?.windowScene?
-                .interfaceOrientation ?? .portrait
-        } else {
-            interfaceOrientation = UIApplication.shared.statusBarOrientation
-        }
-
+        interfaceOrientation = UIApplication.shared.windows.first?.windowScene?
+            .interfaceOrientation ?? .portrait
         let videoOrientation: AVCaptureVideoOrientation
 
         // For portrait-only apps, prioritize interface orientation
