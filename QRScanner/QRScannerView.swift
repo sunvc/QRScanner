@@ -261,7 +261,7 @@ public class QRScannerView: UIView {
         do {
             try device.lockForConfiguration()
             defer { device.unlockForConfiguration() }
-            
+
             let zoom = ProcessInfo.processInfo.isiOSAppOnMac ? 1.0 : max(
                 device.minAvailableVideoZoomFactor,
                 min(factor, device.maxAvailableVideoZoomFactor)
@@ -475,16 +475,17 @@ public class QRScannerView: UIView {
 
         // Configure high frame rate
         configureFrameRate(for: videoDevice)
-        
+
         // iPad 分屏支持：开启多任务相机访问
+        #if !targetEnvironment(macCatalyst)
         if #available(iOS 16.0, *) {
             if session.isMultitaskingCameraAccessSupported {
                 session.isMultitaskingCameraAccessEnabled = true
             }
         }
-
+        #endif
         session.commitConfiguration()
-        
+
         // torch observation
         if videoDevice.hasTorch {
             torchActiveObservation = videoDevice
@@ -500,7 +501,6 @@ public class QRScannerView: UIView {
             }
         }
     }
-    
 
     // MARK: - Frame Rate Configuration
 
@@ -797,18 +797,17 @@ public class QRScannerView: UIView {
     // MARK: Preview Layer
 
     private func addPreviewLayer() {
-        
         let previewLayer = AVCaptureVideoPreviewLayer(session: session)
         previewLayer.videoGravity = .resizeAspectFill
         previewLayer.frame = bounds
         layer.addSublayer(previewLayer)
 
         self.previewLayer = previewLayer
-        if ProcessInfo.processInfo.isiOSAppOnMac{
+        if ProcessInfo.processInfo.isiOSAppOnMac {
             mirrorPreviewLayer(isMirrored: true)
         }
     }
-    
+
     private func mirrorPreviewLayer(isMirrored: Bool) {
         DispatchQueue.main.async {
             if isMirrored {
@@ -879,7 +878,6 @@ public class QRScannerView: UIView {
             return
         }
 
-        let previousOrientation = currentOrientation
         currentOrientation = newOrientation
 
         // Immediately update video orientation
